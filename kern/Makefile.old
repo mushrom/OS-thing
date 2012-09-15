@@ -1,0 +1,26 @@
+KNAME	  = kernel
+ARCH	  = x86
+AS        = nasm
+CC        = gcc
+LD        = ld
+CFLAGS    = -nostdlib -fno-builtin -nostartfiles -nodefaultlibs -DARCH=x86 -m32 -Wall
+LDFLAGS   = -T linker.ld -melf_i386_fbsd
+LINKFILES = $(KNAME).bin kmain.o loader.o
+
+all: image
+
+image: loader kernel linker
+
+kernel:
+	$(CC) $(CFLAGS) -c kmain.c -o kmain.o
+
+loader:
+	$(AS) -f elf loader.s
+
+linker:
+	$(LD) $(LDFLAGS) -o $(LINKFILES)
+
+clean:
+	rm *.o *.bin
+
+.PHONY: image

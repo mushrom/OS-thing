@@ -1,0 +1,30 @@
+#!/usr/local/bin/bash
+# A shell wrapper so I can do testing a bit quicker
+
+KERNEL="kernel.bin"
+which qemu-system-x86_64
+if [ $? -gt 0 ]; then
+	echo "Qemu not installed"
+fi
+
+if [[ `ls *.bin | wc -w` -gt 1 || ! -e $KERNEL ]]; then
+	echo "Select which kernel to boot: "
+
+	select MEH in `ls *.bin` "cancel"; do
+		case $MEH in 
+			*.bin)
+				KERNEL=$MEH
+				break
+				;;
+			cancel)
+				exit
+				;;
+			*)
+				echo "Invalid choice"
+				;;
+		esac
+	done
+tput el
+fi
+
+qemu-system-x86_64 -kernel $KERNEL

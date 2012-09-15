@@ -1,18 +1,17 @@
-#include "skio.h"
-#ifndef _kernel_console_h
-#define _kernel_console_h
-#define XSIZE 160 //Actual terminal size is 80x25, this is 160 because the videoram needs 16 bit input
-#define YSIZE 25
+#ifndef _kernel_console_c
+#define _kernel_console_c
 
+#include <sys/console.h>
+
+char *videoram = (char *)VIDEORAM;
 unsigned short int cur_x_pos = 0,
 		   cur_y_pos = 0,
 		   color = 0x0f;
 
 void cls( void ){
-	memset( videoram, 0 , 2000 );
+	memset( videoram, 0, 4000 );
 	cur_x_pos = cur_y_pos = 0;
 }
-
 
 void _kcheck_scroll( void ){
 	unsigned short int i;
@@ -22,7 +21,6 @@ void _kcheck_scroll( void ){
 		}
 		for ( ; cur_y_pos > 24; cur_y_pos-- );
 		memset( videoram+(i*XSIZE), 0, XSIZE );
-		//temp-=160;
 	}
 }
 
@@ -39,11 +37,13 @@ void kputchar( unsigned char input ){
 			cur_y_pos++;
 			cur_x_pos = 0;
 		}
-	} else if ( input == 0x0a ) {
+	} else if ( input == '\n' ) {
 		cur_y_pos++;
 		cur_x_pos = 0;
-	} else if ( input == 0x0d ) {
+	} else if ( input == '\r' ) {
 		cur_x_pos = 0;
+	} else if ( input == '\t' ) {
+		cur_x_pos += 16 - ( cur_x_pos % 16 );
 	}
 	_kcheck_scroll();
 }
@@ -53,5 +53,9 @@ void kputs( char *input ){
 	for ( i = 0; i < strlen(input); i++ ){
 		kputchar( input[i] );
 	}
+}
+
+void set_color( unsigned char new_color ){
+	color = new_color;
 }
 #endif

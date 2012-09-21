@@ -31,6 +31,9 @@ int syscall_##fn(P1 p1, P2 p2){ \
 	return a; \
 }
 
+DECL_SYSCALL0(cls)
+DECL_SYSCALL1(kputchar, char)
+DECL_SYSCALL1(kputs, char *);
 
 void init_syscalls();
 

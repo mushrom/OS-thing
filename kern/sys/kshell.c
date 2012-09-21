@@ -50,10 +50,14 @@ void kshell( char *PS1 ){
 		} else if ( strcmp( cmd, "switch-task" ) == 0 ){
 			printf( "switching from pid %d\n", getpid());
 			switch_task();
+			while ( 1 ) usleep( 50 );
 		} else if ( strcmp( cmd, "getpid" ) == 0 ){
 			printf( "%d\n", getpid());
 		} else if ( strcmp( cmd, "clear" ) == 0 ){
 			cls();
+		} else if ( strcmp( cmd, "usermode" ) == 0 ){
+			switch_to_user_mode();
+			syscall_kputs( "usermode test\n" );
 		} else if ( strcmp( cmd, "alloc-test" ) == 0 ){
 			uint32_t addr;
 			for ( j = 3; j--; ){
@@ -67,6 +71,8 @@ void kshell( char *PS1 ){
 		} else if ( strcmp( cmd, "int-test" ) == 0 ){
 			printf( "Testing interrupts...\n" );
 			asm volatile("int $0x03");
+		} else if ( strcmp( cmd, "drivers" ) == 0 ){
+			dump_drivers();
 		} else if ( strcmp( cmd, "pagefault" ) == 0 ){
 			printf( "Faulting...\n" );
 			printf((char *) 0xa0000000 );

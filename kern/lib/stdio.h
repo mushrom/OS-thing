@@ -1,16 +1,16 @@
 #ifndef _kernel_stdio_h
 #define _kernel_stdio_h
-#include <sys/console.h>
+#include <drivers/console.h>
+#include <drivers/driver.h>
 #include <sys/skio.h>
 #include <lib/stdint.h>
-
-#define va_start(v,l) __builtin_va_start(v,l)
-#define va_arg(v,l)   __builtin_va_arg(v,l)
-#define va_end(v)     __builtin_va_end(v)
-#define va_copy(d,s)  __builtin_va_copy(d,s)
-typedef __builtin_va_list va_list;
-typedef unsigned long size_t;
+#include <lib/stdarg.h>
+#include <lib/string.h>
 
 int printf( char *, ... );
+void putchar( char buf );
+void puts( char *str );
+void print_num( unsigned long input );
+void print_hex( unsigned long input );
 
 #endif

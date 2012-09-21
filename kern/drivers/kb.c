@@ -1,10 +1,11 @@
 #ifndef _kernel_keyboard_c
 #define _kernel_keyboard_c
-#include <sys/kb.h>
+#include <drivers/kb.h>
 
 #define S 1 /* S = shift */
 
 unsigned int shift_on = 0;
+unsigned char read_buf = 0;
 
 unsigned char us_kbd[128] = {
 	 0,   27, 
@@ -39,13 +40,38 @@ static void keyboard_handler( registers_t regs ){
 			/* This doesn't draw it on screen, it pushes it into an 
 			 * input buffer defined in sys/skio.h */
 			put_in_char( buf );
+			read_buf = buf;
 		}
 	}
 }
 
+/* Just a note, I wouldn't recommend directly reading the keyboard for general purpose reading. 
+ * It's a waste of resources to constantly poll, especially when it's already pushing
+ * to a buffer on interrupt. This is here just to fit with the driver model. */
+static void read_kb( int d, void *buf, size_t size ){
+	unsigned int i;
+	char *out_buf = buf;
+	for ( i = 0; i < size; i++ ){
+		while ( !read_buf );
+		out_buf[i] = read_buf;
+		read_buf = 0;
+	}
+}
 
 void init_keyboard( void ){
 	register_interrupt_handler( IRQ1, &keyboard_handler );
+	kernel_driver_t kb_driver;
+
+	kb_driver.id		= 0xfee1dead;
+	kb_driver.type 		= USER_IN;
+	kb_driver.init		= 0;
+	kb_driver.write		= 0;
+	kb_driver.read		= (read_func)read_kb;
+	kb_driver.pwrite	= 0;
+	kb_driver.pread		= 0;
+	kb_driver.ioctl		= 0;
+
+	register_driver( kb_driver );
 }
 
 #endif

@@ -23,6 +23,8 @@ void init_tables( void ){
 	init_gdt();
 	init_idt();
 	memset( &interrupt_handlers, 0, sizeof( isr_t ) * 256 );
+	register_interrupt_handler( 13, &gen_protect_fault );
+	register_interrupt_handler( 0x30, &dump_registers );
 }
 
 void set_kernel_stack( uint32_t stack ){

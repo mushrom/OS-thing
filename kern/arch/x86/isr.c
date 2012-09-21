@@ -41,4 +41,10 @@ void dump_registers( registers_t regs ){
 		regs.int_no, regs.err_code, regs.eflags );
 }
 
+void gen_protect_fault( registers_t regs ){
+	dump_registers( regs );
+
+	PANIC( "General protection fault" );
+}
+
 #endif

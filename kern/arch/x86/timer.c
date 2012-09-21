@@ -29,13 +29,13 @@ void init_timer( uint32_t freq ){
 void wait( uint32_t seconds ){
 	uint32_t limit = seconds * current_freq;
 	mark = tick;
-	while ( tick - mark <= limit );
+	while ( tick - mark < limit );
 }
 
 void usleep( uint32_t useconds ){
 	uint32_t limit = useconds * current_freq / 1000;
 	mark = tick;
-	while ( tick - mark <= limit );
+	while ( tick - mark < limit );
 }
 
 #endif

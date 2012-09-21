@@ -1,10 +1,10 @@
 #ifndef _kernel_isr_h
 #define _kernel_isr_h
 
-#include <lib/itoa.h>
 #include <sys/console.h>
 #include <lib/stdint.h>
 #include <lib/stdio.h>
+#include <lib/kmacros.h>
 
 #define IRQ0 32
 #define IRQ1 33
@@ -33,5 +33,6 @@ typedef struct registers {
 typedef void (*isr_t)(registers_t);
 void register_interrupt_handler( uint8_t, isr_t );
 void dump_registers( registers_t regs );
+void gen_protect_fault( registers_t regs );
 
 #endif

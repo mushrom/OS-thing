@@ -1,15 +1,18 @@
 #ifndef _kernel_task_h
 #define _kernel_task_h
 #include <arch/x86/paging.h>
+#include <arch/x86/init_tables.h>
 #include <lib/stdint.h>
 #include <lib/stdio.h>
 #include <lib/kmacros.h>
+#define KERNEL_STACK_SIZE 2048
 
 typedef struct task {
 	int id;
 	uint32_t esp, ebp;
 	uint32_t eip;
 	page_directory_t *page_directory;
+	uint32_t kernel_stack;
 	struct task *next;
 } task_t;
 

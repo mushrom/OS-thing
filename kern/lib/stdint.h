@@ -1,7 +1,5 @@
 #ifndef _kernel_stdint_h
 #define _kernel_stdint_h
-#include <sys/skio.h>
-#include <itoa.h>
 
 typedef signed char 	__int8_t;
 typedef unsigned char 	__uint8_t;

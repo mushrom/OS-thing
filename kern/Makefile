@@ -10,7 +10,7 @@ CFLAGS     = -nostdlib -fno-builtin -m32 \
 LDFLAGS    = -T linker.ld -melf_i386_fbsd
 LINKFILES  = $(KNAME).bin 
 
-KFILES	  += $(shell find sys lib arch/$(ARCH)/ -name "*.[c,s]" ) 
+KFILES	  += $(shell find sys lib arch/$(ARCH)/ drivers -name "*.[c,s]" ) 
 KFILES	  += $(shell ls *.c *.s )
 LINKFILES += $(shell echo $(KFILES) | sed "s/\.[c,h,s]/.o/g")
 

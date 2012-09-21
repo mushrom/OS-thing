@@ -2,16 +2,19 @@
 #define _kernel_console_c
 
 #include <sys/console.h>
+static int console_write( int screen, void *buf, uint32_t size );
 
 char *videoram = (char *)VIDEORAM;
 unsigned short int cur_x_pos = 0,
 		   cur_y_pos = 0,
 		   color = 0x0f;
+//console_driver.write = console_write;
 
 void cls( void ){
 	memset( videoram, 0, 4000 );
 	cur_x_pos = cur_y_pos = 0;
 }
+
 
 void _kcheck_scroll( void ){
 	unsigned short int i;
@@ -62,4 +65,30 @@ void kputs( char *input ){
 void set_color( unsigned char new_color ){
 	color = new_color;
 }
+
+/* Driver interface */
+static int console_write( int screen, void *buf, uint32_t size ){
+	char *in_buf = buf;
+	int i = 0;
+	for ( i = 0; i < size; i++ ){
+		kputchar( in_buf[i] );
+	}
+	return i;
+}
+
+void init_console(){
+	kernel_driver_t console_driver;
+
+	console_driver.id     = 0x5eeca7;
+	console_driver.type   = USER_OUT;
+	console_driver.init   = 0;
+	console_driver.write  = (write_func)console_write;
+	console_driver.read   = 0;
+	console_driver.pwrite = 0;
+	console_driver.pread  = 0;
+	console_driver.ioctl  = 0;
+
+	register_driver( console_driver );
+}
+
 #endif

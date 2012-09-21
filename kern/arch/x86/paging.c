@@ -35,18 +35,18 @@ static page_table_t *clone_table( page_table_t *src, uint32_t *phys ){
 
 	int i;
 	for ( i = 0; i < 1024; i++ ){
-		if ( src->pages[i].frame ){
+		if ( !src->pages[i].frame )
+			continue;
 		
-			alloc_frame( &table->pages[i], 0, 0 );
+		alloc_frame( &table->pages[i], 0, 0 );
 
-			if ( src->pages[i].present )	table->pages[i].present = 1;
-			if ( src->pages[i].rw )		table->pages[i].rw = 1;
-			if ( src->pages[i].user )	table->pages[i].user = 1;
-			if ( src->pages[i].accessed )	table->pages[i].accessed = 1;
-			if ( src->pages[i].dirty ) 	table->pages[i].dirty = 1;
+		if ( src->pages[i].present )	table->pages[i].present = 1;
+		if ( src->pages[i].rw )		table->pages[i].rw = 1;
+		if ( src->pages[i].user )	table->pages[i].user = 1;
+		if ( src->pages[i].accessed )	table->pages[i].accessed = 1;
+		if ( src->pages[i].dirty ) 	table->pages[i].dirty = 1;
 
-			copy_page_physical( src->pages[i].frame * 0x1000, table->pages[i].frame * 0x1000 );
-		}
+		copy_page_physical( src->pages[i].frame * 0x1000, table->pages[i].frame * 0x1000 );
 	}
 	return table;
 }
@@ -130,7 +130,6 @@ void init_paging(){
 		alloc_frame( get_page( i, 1, kernel_directory ), 0, 0 );
 
 	register_interrupt_handler( 14, page_fault );
-	register_interrupt_handler( 13, page_fault );
 	switch_page_directory( kernel_directory );
 
 	kheap = create_heap( KHEAP_START, KHEAP_START + KHEAP_INIT_SIZE, 0xcffff000, 0, 0 );

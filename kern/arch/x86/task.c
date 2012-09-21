@@ -27,6 +27,7 @@ void init_tasking(){
 	current_task->eip = 0;
 	current_task->page_directory = current_directory;
 	current_task->next = 0;
+	current_task->kernel_stack = (uint32_t)kmalloc_a( KERNEL_STACK_SIZE );
 
 	asm volatile( "sti" );
 }
@@ -47,6 +48,7 @@ int fork(){
 	new_task->esp = new_task->ebp = 0;
 	new_task->eip = 0;
 	new_task->page_directory = directory;
+	current_task->kernel_stack = (uint32_t)kmalloc_a( KERNEL_STACK_SIZE );
 	new_task->next = 0;
 
 	while ( tmp_task->next )
@@ -153,6 +155,7 @@ void switch_task(){
 
 	//printf( "Switched to task %d... \r", current_task->id );
 	current_directory = current_task->page_directory;
+	set_kernel_stack( current_task->kernel_stack + KERNEL_STACK_SIZE );
 
 	asm volatile("		\
 		cli;		\
@@ -167,9 +170,11 @@ void switch_task(){
 }
 
 void switch_to_user_mode(){
+	set_kernel_stack( current_task->kernel_stack+KERNEL_STACK_SIZE );
+
 	asm volatile("	\
 	cli;	\
-	mov $0x30, %ax;	\
+	mov $0x23, %ax;	\
 	mov %ax, %ds;	\
 	mov %ax, %es;	\
 	mov %ax, %fs;	\
@@ -177,7 +182,7 @@ void switch_to_user_mode(){
 			\
 	mov %esp, %eax;	\
 	pushl $0x23;	\
-	pushl %eax;	\
+	pushl %esp;	\
 	pushf;		\
 	pushl $0x1b;	\
 	push $1f;	\

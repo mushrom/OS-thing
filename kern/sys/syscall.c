@@ -3,9 +3,6 @@
 #include <sys/syscall.h>
 
 static void syscall_handler( registers_t regs );
-DECL_SYSCALL0(cls)
-DECL_SYSCALL1(kputchar, char)
-DECL_SYSCALL1(kputs, char *);
 
 #define NUM_SYSCALLS 3
 static void *syscalls[ NUM_SYSCALLS ] = {

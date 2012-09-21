@@ -1,10 +1,9 @@
 #ifndef _kernel_debug_macros
 #define _kernel_debug_macros
-#include <sys/kshell.h>
 
 #define PANIC( a ) { printf( "Great, you broke it. Sit here and think about what you did."\
 				"\n\t%s\n\t%s:%d\n", a, __FILE__, __LINE__ );\
-				kshell("[\x14panic\x17] > " );\
+				asm volatile( "hlt" );\
 		   }
 
 				//asm volatile ( "sti" );

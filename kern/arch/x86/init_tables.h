@@ -66,7 +66,6 @@ struct tss_entry_struct {
 } __attribute__((packed));
 typedef struct tss_entry_struct tss_entry_t;
 
-void init_tables( void );
 extern isr_t interrupt_handlers[];
 
 extern void isr0 ();
@@ -121,5 +120,8 @@ extern void irq15();
 
 extern void isr48();
 extern void isr80();
+
+void set_kernel_stack( uint32_t stack );
+void init_tables( void );
 
 #endif

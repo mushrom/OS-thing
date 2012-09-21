@@ -3,12 +3,14 @@
 /*#include <sys/skio.h>*/
 #include <sys/console.h>
 #include <sys/skio.h>
-#include <itoa.h>
+#include <lib/itoa.h>
+#include <lib/stdio.h>
+#include <lib/stdint.h>
 /*#include <itoa.h>*/
 #define KMEMROOT 0xf00000
 
-void  init_kheap( void *start, unsigned int size );
-void *kmalloc( unsigned long size );
+void  init_paging( void *, unsigned int );
+uint32_t *kmalloc( uint32_t size, uint8_t align, uint32_t *phys );
 void  kfree( void *ptr );
 unsigned int get_memused( void );
 

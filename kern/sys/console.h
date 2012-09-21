@@ -1,6 +1,6 @@
 #ifndef _kernel_console_h
 #define _kernel_console_h
-#include <sys/skio.h>
+#include <lib/string.h>
 
 #define XSIZE 160 /*Actual terminal size is 80x25, this is 160 because the videoram needs 16 bit input*/
 #define YSIZE 25

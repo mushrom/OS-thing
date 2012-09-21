@@ -1,0 +1,4 @@
+boot: floppy
+floppya: 1_44="image.img", status=inserted
+clock: sync=realtime
+cpu: ips=1000000

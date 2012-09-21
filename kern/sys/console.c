@@ -25,10 +25,9 @@ void _kcheck_scroll( void ){
 }
 
 void kputchar( unsigned char input ){
-	unsigned int pos;
+	unsigned int pos = (( cur_y_pos * XSIZE ) + cur_x_pos );
+
 	if ( input >= 0x20 && input < 0x7f ){
-		pos = (( cur_y_pos * XSIZE ) + cur_x_pos );
-		
 		videoram[pos] = input;
 		videoram[pos+1] = color;
 		cur_x_pos+=2;
@@ -44,6 +43,11 @@ void kputchar( unsigned char input ){
 		cur_x_pos = 0;
 	} else if ( input == '\t' ) {
 		cur_x_pos += 16 - ( cur_x_pos % 16 );
+	} else if ( input == '\b' ) {
+		cur_x_pos -= 2;
+		videoram[pos-2] = 0;
+	} else if ( input >= 0x10 && input <= 0x1f ){
+		set_color( input - 0x10 );
 	}
 	_kcheck_scroll();
 }

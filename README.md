@@ -1,8 +1,6 @@
 ###thing
 - - - - -
-This is a small OS project, at the moment consisting of an extremely barebones kernel that prints strings like nothing else. :P
+This is a small OS project, at the moment consisting of barebones kernel. It's intended to be yet another posix clone, for educational purposes. 
 
-Atm you can boot it by using `qemu -kernel kernel.bin`
-or by setting up the bootloader yourself.
-
-Some of this code is from wiki.osdev.org, namely loader.s and linker.ld. I'll replace them when I'm not a noob, heh
+To build it, you'll need a C compiler, nasm, and a unix-like environment (for image generation.)
+In the root directory, just `make` it. You'll probably need to change some flags in the kernel's Makefile.

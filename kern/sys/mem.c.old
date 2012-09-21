@@ -34,13 +34,10 @@ void init_kheap( void *start, unsigned int size ){
 		kmemptr->prev = kmemptr - block_size;
 		kmemptr->size = 0;
 		kmemptr->check = 0;
-		//kputs( "Initialized block " ); print_num( i ); kputs( ": \t\t0x" ); print_hex(( unsigned long )kmemptr );
+		//printf( "Initialized block %d: \t\t0x%x->0x%x\n", i, (unsigned int)kmemptr, (unsigned int)kmemptr->next );
 		kmemptr = kmemptr->next;
-		//kputs( "->0x" ); print_hex(( unsigned long )kmemptr ); kputs( "\n" );
 	}
-  	kputs( "Initialized heap... ( 0x" ); print_hex( heap_size ); kputs( " bytes, " );
-		print_num( heap_size / block_size ); kputs( " blocks )\n" );
-	kputs( "Block size: " ); print_num( block_size ); kputs( "\n" );
+	printf( "[\x12+\x17] initialised heap. ( 0x%x bytes, %d blocks, bs=%d )\n", heap_size, heap_size/block_size, block_size );
 }
 
 void *kmalloc( unsigned long size ){
@@ -63,11 +60,8 @@ void *kmalloc( unsigned long size ){
 			}
 			if ( i ){
 				ret = kmemptr->next;
-				kputs( "0x" ); print_hex(( unsigned long )kmemptr->next );
+				//printf( "0x%x : 0x%x : 0x%x\n", kmemptr->next, kmemmove->next, ret );
 				kmemptr->next = kmemmove->next;
-				kputs( ":0x" ); print_hex(( unsigned long )kmemptr->next );
-				kputs( ":0x" ); print_hex(( unsigned long )ret );
-				kputs( "\n" );
 				kmemptr->next->prev = kmemptr;
 				kmemptr->size = size;
 				found_free = 1;
@@ -82,11 +76,13 @@ void *kmalloc( unsigned long size ){
 }
 
 void kfree( void *ptr ){
+	/*
 	unsigned long size;
 	kmemnode_t *kmemmove = kmemptr = kmemroot;
 
 	kmemptr = ptr - block_size;
 	print_num( kmemptr->size ); kputs( "\n" );
+	*/
 }
 
 unsigned int get_memused( void ){

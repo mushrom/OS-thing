@@ -24,6 +24,7 @@ STACKSIZE equ 0x4000                    ; that's 16k.
 loader:
     mov  esp, stack + STACKSIZE         ; set up the stack
     push eax                            ; Multiboot magic number
+    push esp
     push ebx                            ; Multiboot info structure
  
     call kmain                          ; call kernel proper

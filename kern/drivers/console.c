@@ -77,8 +77,10 @@ static int console_write( int screen, void *buf, uint32_t size ){
 }
 
 void init_console(){
+/*
 	kernel_driver_t console_driver;
 
+	memcpy( console_driver.name, "console", MAX_NAME );
 	console_driver.id     = 0x5eeca7;
 	console_driver.type   = USER_OUT;
 	console_driver.init   = 0;
@@ -87,8 +89,10 @@ void init_console(){
 	console_driver.pwrite = 0;
 	console_driver.pread  = 0;
 	console_driver.ioctl  = 0;
+	console_driver.unload = 0;
 
 	register_driver( console_driver );
+*/
 }
 
 #endif

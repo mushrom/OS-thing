@@ -1,10 +1,11 @@
 NAME=image
 MAKE=gmake
+CONFIG_C_FLAGS=
 
 all: kernel image
 
 kernel:
-	@cd kern; $(MAKE)
+	@cd kern; $(MAKE) CONFIG_C_FLAGS="$(CONFIG_C_FLAGS)"
 
 image:
 	@echo -e "[\033[0;34mGenerating image...\033[0;0m]"

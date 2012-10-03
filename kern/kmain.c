@@ -9,33 +9,47 @@
 #include <lib/stdint.h>
 #include <lib/stdio.h>
 #include <sys/syscall.h>
+#include <mem/paging.h>
+
+#include <fs/fs.h>
 
 /*Drivers*/
-#include <drivers/driver.h>
 #include <sys/console.h>
+#include <drivers/driver.h>
 #include <drivers/kb.h>
 
 #include <sys/kshell.h>
 #include <lib/kmacros.h>
+#include <mem/alloc.h>
 
 uint32_t initial_esp;
-extern kernel_driver_t console, drv_tmp;
+#ifndef NO_DEBUG
+char *g_errfile = "unknown";
+#else
+char *g_errfile = "Debugging disabled";
+#endif
+unsigned int g_errline = 0;
+page_dir_t *kernel_dir;
 
 void test_thing( ){
-	int ret = fork();
+	//int ret = fork();
 
 	//printf( "forkd... %d, %d\n", getpid(), ret );
 	printf( "Testing a fork\n" );
-	dump_pids();
+	//dump_pids();
 	while ( 1 ) usleep(100);
 }
 
 /* Main kernel code */
 void kmain( void* mbd, uint32_t initial_stack, unsigned int magic ){
+	int i;
 	#define TIMER_FREQ 50
 	initial_esp = initial_stack;
 	cls();
 	set_color( COLOR_GRAY );
+
+	kputs( "[\x19obsidian\x17 OS]\n" );
+	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 
 	if ( magic != 0x1BADB002 ){
 		kputs( "[\x14-\x17] Multiboot not found...\n" );
@@ -43,24 +57,21 @@ void kmain( void* mbd, uint32_t initial_stack, unsigned int magic ){
 		kputs( "[\x12+\x17] Multiboot found\n" );
 	}
 
-	/* Avoid using any printf calls until after the console driver is set up!
- 	 * sys/stdio needs "console" with a good write function, otherwise it'll triple fault */
-	init_driver_stuff();	kputs( "[\x12+\x17] initialised driver stuff\n" );
-	init_console(); get_driver( USER_OUT ); console = drv_tmp;
-	if ( !console.write ){ PANIC( "Could not load console driver" ); }
-
-	init_tables(); 		puts( "[\x12+\x17] initialised tables\n" );
-	printf( "    stack at 0x%x\n", initial_stack );
-
+	init_tables(); 		kputs( "[\x12+\x17] initialised tables\n" );
 	init_paging(); 		printf( "[\x12+\x17] initialised paging\n" );
-	init_keyboard(); 	printf( "[\x12+\x17] initialised keyboard\n" );
-	init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
 	init_timer(TIMER_FREQ);	printf( "[\x12+\x17] Initialised timer to %uhz\n", TIMER_FREQ );
-	init_syscalls(); 	printf( "[\x12+\x17] Initialised syscalls\n" );
+	//init_heap( KHEAP_START, 0x10000, kernel_dir );	printf( "[\x12+\x17] initialised heap\n" );
+	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
+
+	init_driver_stuff();	kputs( "[\x12+\x17] initialised driver stuff\n" );
+	init_keyboard(); 	printf( "[\x12+\x17] initialised keyboard\n" );
+	init_shell();
+	//init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
+	//init_syscalls(); 	printf( "[\x12+\x17] Initialised syscalls\n" );
+	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 
 	asm volatile ( "sti" );
-	console.write( 0, "testing\n", 8 );
-	syscall_kputs( "test\n" );
+	//syscall_kputs( "test\n" );
 
 	//test_thing();
 	

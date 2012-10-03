@@ -10,7 +10,7 @@ static void timer_call( registers_t regs ){
 	//printf( "Tick: %u\n", ++tick );
 	//asm volatile ( "sti" );
 	tick++;
-	switch_task();
+	//switch_task();
 }
 
 void init_timer( uint32_t freq ){

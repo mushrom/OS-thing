@@ -22,15 +22,16 @@ unsigned char us_kbd[128] = {
 static void keyboard_handler( registers_t regs ){
 	unsigned char scancode;
 	unsigned char buf;
+	unsigned char *map = us_kbd;
 
 	scancode = inb( 0x60 );
 	if ( scancode & 0x80 ){
-		buf = us_kbd[ scancode - 0x80 ];
+		buf = map[ scancode - 0x80 ];
 		if ( buf == S ){
 			shift_on = 0;
 		} 
 	} else {
-		buf = us_kbd[ scancode ];
+		buf = map[ scancode ];
 		if ( buf == S ){
 			shift_on = 1;
 		} else {
@@ -58,10 +59,16 @@ static void read_kb( int d, void *buf, size_t size ){
 	}
 }
 
+void unload_keyboard( void ){
+	unregister_interrupt_handler( IRQ1 );
+}
+
 void init_keyboard( void ){
 	register_interrupt_handler( IRQ1, &keyboard_handler );
+/*
 	kernel_driver_t kb_driver;
 
+	memcpy( kb_driver.name, "keyboard", 9 );
 	kb_driver.id		= 0xfee1dead;
 	kb_driver.type 		= USER_IN;
 	kb_driver.init		= 0;
@@ -70,8 +77,11 @@ void init_keyboard( void ){
 	kb_driver.pwrite	= 0;
 	kb_driver.pread		= 0;
 	kb_driver.ioctl		= 0;
+	kb_driver.unload	= (unload_func)unload_keyboard;
+	//kb_driver.unload	= 0;
 
 	register_driver( kb_driver );
+*/
 }
 
 #endif

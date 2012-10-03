@@ -31,6 +31,10 @@ void register_interrupt_handler( uint8_t n, isr_t handler ){
 	interrupt_handlers[n] = handler;
 }
 
+void unregister_interrupt_handler( uint8_t n ){
+	interrupt_handlers[n] = 0;
+}
+
 void dump_registers( registers_t regs ){
 	printf( "edi: 0x%x\tesi: 0x%x\tebp: 0x%x\tesp: 0x%x\tebx: 0x%x\n"
 		"edx: 0x%x\tecx: 0x%x\teax: 0x%x\teip: 0x%x\t\n"

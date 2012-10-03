@@ -3,8 +3,6 @@
 #include <lib/stdint.h>
 #include <lib/stdio.h>
 #include <arch/x86/isr.h>
-#include <arch/x86/paging.h>
-#include <arch/x86/task.h>
 
 #define PIT_FREQ 1193180
 

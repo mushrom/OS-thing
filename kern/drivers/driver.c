@@ -2,41 +2,12 @@
 #define _kernel_driver_c
 #include <drivers/driver.h>
 
-kernel_driver_t *driver_list;
-kernel_driver_t drv_dummy, 
-		console, 
-		drv_input,
-		drv_disk,
-		drv_tmp;
-unsigned int driver_p = 0;
+//kernel_driver_t *driver_list;
+file_type_t	*dev_root,
+		*dev_node;
 
-#define MAX_DRIVERS 8
-
-int register_driver( kernel_driver_t new_driver ){
-	if ( driver_p < MAX_DRIVERS ){
-		driver_list[ driver_p ] = new_driver;
-		//printf( "Registered driver %d, %u\n", driver_p, new_driver.id );
-
-		if ( new_driver.init ){
-			new_driver.init( 0 );
-		}
-		return driver_p++;
-	} else {
-		return -1;
-	}
-}
-
-void get_driver( driver_type_t type ){
-	unsigned int i;
-	//drv_tmp = drv_dummy;
-
-	for ( i = 0; i < driver_p; i++ ){
-		if ( driver_list[i].type & type ){
-			//printf( "Driver write func: 0x%x\n", driver_list[i].write );
-			//drv_tmp = driver_list[i];
-			drv_tmp = driver_list[i];
-		}
-	}
+void load_driver( file_type_t driver_node ){
+	//unsigned int i;
 }
 
 /*
@@ -56,30 +27,38 @@ kernel_driver_t gen_driver( 	driver_type_t type, init_func init, write_func writ
 }*/
 
 void init_driver_stuff( void ){
-	driver_list = kmalloc( sizeof( kernel_driver_t ) * MAX_DRIVERS, 1, 0 );
-
+	//driver_list = kmalloc( sizeof( kernel_driver_t ) * MAX_DRIVERS, 1, 0 );
 	/*
+
 	drv_dummy.type	= 0;
-	drv_dummy.id	= 123;
+	memcpy( drv_dummy.name, "dummy", 5 );
+	drv_dummy.id	= 0x0;
 	drv_dummy.init 	= 0;
 	drv_dummy.write = 0;
 	drv_dummy.read 	= 0;
 	drv_dummy.pwrite = 0;
 	drv_dummy.pread = 0;
 	drv_dummy.ioctl = 0;
+	drv_dummy.unload = 0;
 	*/
 }
 
 void dump_drivers( void ){
+	/*
 	unsigned int i;
 	for ( i = 0; i < driver_p; i++ ){
-		printf( "driver %d: id=0x%x, type=", i, driver_list[i].id );
+		printf( "driver %d: name=\"%s\", id=0x%x, type=", i, driver_list[i].name, driver_list[i].id );
 		if ( driver_list[i].type & USER_IN )  printf("Input (user), ");
 		if ( driver_list[i].type & USER_OUT ) printf("Output (user), ");
 		if ( driver_list[i].type & DISK )     printf("Disk, ");
 		if ( driver_list[i].type & FILE_S )   printf("File system, ");
 		printf( "\n" );
 	}
+	*/
+}
+
+int unload_driver( file_type_t driver_node ){
+	return 0;
 }
 	
 #endif

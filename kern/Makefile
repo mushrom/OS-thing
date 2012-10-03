@@ -5,12 +5,13 @@ CC         = gcc
 LD         = ld
 #CFLAGS     = -nostdlib -fno-builtin -nostartfiles -nodefaultlibs -m32 \
 		-Wall -DARCH=$(ARCH) -I$(shell pwd) -I$(shell pwd)/lib
-CFLAGS     = -nostdlib -fno-builtin -m32 \
-		-Wall -DARCH=$(ARCH) -I$(shell pwd) -I$(shell pwd)/lib
+CFLAGS     = -nostdlib -fno-builtin -nodefaultlibs -m32 -Wall -DARCH=$(ARCH) -I$(shell pwd) -I$(shell pwd)/lib
+CONFIG_C_FLAGS =
+CFLAGS 	  += $(CONFIG_C_FLAGS)
 LDFLAGS    = -T linker.ld -melf_i386_fbsd
 LINKFILES  = $(KNAME).bin 
 
-KFILES	  += $(shell find sys lib arch/$(ARCH)/ drivers -name "*.[c,s]" ) 
+KFILES	  += $(shell find arch/$(ARCH)/ sys drivers lib fs mem -name "*.[c,s]" ) 
 KFILES	  += $(shell ls *.c *.s )
 LINKFILES += $(shell echo $(KFILES) | sed "s/\.[c,h,s]/.o/g")
 

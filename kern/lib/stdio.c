@@ -2,8 +2,6 @@
 #define _kernel_stdio_c
 #include <lib/stdio.h>
 
-extern kernel_driver_t console;
-
 int printf( char *format, ... ){
 	int slen = strlen( format ), i = 0, signed_int;
 	unsigned int unsigned_int;
@@ -15,15 +13,15 @@ int printf( char *format, ... ){
 		if ( format[i] == '%' ){
 			switch( format[++i] ){
 				case '%':
-					putchar( '%' );
+					kputchar( '%' );
 					break;
 				case 'c':
 					buf = va_arg( args, int );
-					putchar( buf );
+					kputchar( buf );
 					break;
 				case 's':
 					str = va_arg( args, char * );
-					puts( str );
+					kputs( str );
 					break;
 				case 'd':
 					signed_int = va_arg( args, int );
@@ -39,19 +37,11 @@ int printf( char *format, ... ){
 					break;
 			}
 		} else {
-			putchar( format[i] );
+			kputchar( format[i] );
 		}
 	}
 	va_end( args );
 	return 0;
-}
-
-void putchar( char buf ){
-	console.write( 0, &buf, 1 );
-}
-
-void puts( char *str ){
-	console.write( 0, str, strlen( str ));
 }
 
 void print_num( unsigned long input ){
@@ -79,5 +69,17 @@ void print_hex( unsigned long input ){
 		buf[i++] = letters[ r - d * 16 ];
 	};
 	while ( i-- ) kputchar( buf[i] );
+}
+
+int atoi( char *string ){
+	unsigned int 	output = 0, 
+			i = strlen( string ) - 1, 
+			p = 1;
+
+	for ( ; i + 1; i-- ){
+		output += ( string[i] - '0' ) * p;
+		p *= 10;
+	}
+	return output;
 }
 #endif

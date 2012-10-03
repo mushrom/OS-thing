@@ -8,7 +8,7 @@ unsigned int strlen( char *input ){
 }
 
 int strcmp( char *s1, char *s2 ){
-	int i = 0, ret = 0, s1_len = 0, s2_len = 0;
+	unsigned int i = 0, ret = 0, s1_len = 0, s2_len = 0;
 	s1_len = strlen( s1 );
 	s2_len = strlen( s2 );
 	
@@ -16,7 +16,7 @@ int strcmp( char *s1, char *s2 ){
 		return s1_len - s2_len;
 	}
 	for ( i = 0; i < s1_len; i++ ){
-		ret += s1[i] - s2[i];
+		ret += (s1[i] == s2[i])?0:1;
 	}
 	return ret;
 }

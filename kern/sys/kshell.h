@@ -9,13 +9,21 @@
 #include <lib/string.h>
 #include <lib/stdio.h>
 
-#include <arch/x86/timer.h>
-#include <arch/x86/isr.h>
-#include <arch/x86/kheap.h>
-#include <arch/x86/init_tables.h>
+#include <arch/arch.h>
 
 #include <drivers/driver.h>
+#include <drivers/kb.h>
+#include <mem/alloc.h>
+
+#include <fs/fs.h>
+
+typedef int (*shell_func_t)( int argc, char **argv );
+typedef struct shell_command {
+	char *name;
+	shell_func_t function;
+} shell_cmd_t;
 
 void kshell( char * );
+void register_shell_func( char *name, shell_func_t function );
 
 #endif

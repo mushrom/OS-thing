@@ -3,7 +3,7 @@
 #include <sys/skio.h>
 
 unsigned char input_buf[ IN_BUF_SIZE ];
-unsigned int  input_buf_p = 0;
+unsigned int  input_buf_p = 0, input_buf_i = 0;
 unsigned int  got_input = 0, i;
 
 /* inports/outports */
@@ -21,9 +21,10 @@ void outb( unsigned short _port, unsigned char _data ){
 /* manipulate in/out buffers */
 unsigned char get_in_char( void ){
 	if ( got_input ){
-		input_buf_p %= IN_BUF_SIZE;
+		input_buf_i++;
+		input_buf_i %= IN_BUF_SIZE;
 		got_input--;
-		return input_buf[ input_buf_p-- ];
+		return input_buf[ input_buf_i ];
 	} else {
 		return 0;
 	}

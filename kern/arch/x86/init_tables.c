@@ -23,7 +23,7 @@ void init_tables( void ){
 	init_gdt();
 	init_idt();
 	memset( &interrupt_handlers, 0, sizeof( isr_t ) * 256 );
-	register_interrupt_handler( 13, &gen_protect_fault );
+	register_interrupt_handler(  0xd, &gen_protect_fault );
 	register_interrupt_handler( 0x30, &dump_registers );
 }
 
@@ -115,8 +115,8 @@ static void init_idt( void ){
 	idt_set_gate( 46, (uint32_t)irq14, 0x08, 0x8e );
 	idt_set_gate( 47, (uint32_t)irq15, 0x08, 0x8e );
 
-	idt_set_gate( 48,(uint32_t)isr48,  0x08, 0x8e );
-	idt_set_gate( 80,(uint32_t)isr80,  0x08, 0x8e );
+	idt_set_gate( 48,(uint32_t)isr48,  0x08, 0x8e ); 	//Dump registers
+	idt_set_gate( 0x80,(uint32_t)isr80,  0x08, 0x8e ); 	//Syscall (on 32 bit, if ever ported to 64 might as well keep it)
 
 	idt_flush((uint32_t)&idt_ptr );
 }

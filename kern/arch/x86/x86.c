@@ -6,7 +6,7 @@ int arch_init( void ){
 	init_tables();
 	kputs( "[\x12+\x17] initialised tables\n" );
 
-	init_paging();
+	//init_paging();
 	kputs( "[\x12+\x17] initialised paging\n" );
 
 	return 0;

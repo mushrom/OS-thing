@@ -18,6 +18,10 @@ void outb( unsigned short _port, unsigned char _data ){
 	asm volatile( "outb %1, %0" : : "dN" (_port), "a" (_data));
 }	
 
+void outl( unsigned short _port, unsigned long _data ){
+	asm volatile( "outl %1, %0" : : "dN" (_port), "a" (_data));
+}	
+
 /* manipulate in/out buffers */
 unsigned char get_in_char( void ){
 	if ( got_input ){

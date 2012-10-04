@@ -2,7 +2,7 @@
 #define _kernel_console_c
 
 #include <sys/console.h>
-static int console_write( int screen, void *buf, uint32_t size );
+//static int console_write( int screen, void *buf, uint32_t size );
 
 char *videoram = (char *)VIDEORAM;
 unsigned short int cur_x_pos = 0,
@@ -67,6 +67,7 @@ void set_color( unsigned char new_color ){
 }
 
 /* Driver interface */
+/* Commented out until devfs is implemented
 static int console_write( int screen, void *buf, uint32_t size ){
 	char *in_buf = buf;
 	int i = 0;
@@ -75,6 +76,7 @@ static int console_write( int screen, void *buf, uint32_t size ){
 	}
 	return i;
 }
+*/
 
 void init_console(){
 /*

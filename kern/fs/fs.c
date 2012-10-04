@@ -32,13 +32,13 @@ void init_vfs( void ){ DEBUG_HERE
 
 	fs_root->find_node= find_node;
 
-	opendir( fs_root );
-	mkdir( fs_root, "dev", 0777 );
+	fs_opendir( fs_root );
+	fs_mkdir( fs_root, "dev", 0777 );
 	//open( fs_root, "afile", 0777 );
-	mkdir( &fs_root[1], "asubdir", 0777 );
-	mkdir( fs_root, "test", 0777 );
-	open( fs_root, "afile", 0777 );
-	closedir( fs_root );
+	fs_mkdir( &fs_root[1], "asubdir", 0777 );
+	fs_mkdir( fs_root, "test", 0777 );
+	fs_open( fs_root, "afile", 0777 );
+	fs_closedir( fs_root );
 }
 
 file_node_t *find_node( file_node_t *node, char *name ){ DEBUG_HERE
@@ -146,7 +146,7 @@ int open( file_node_t *node, char *name, int mode ){ DEBUG_HERE
 	if ( node->type == FS_DIR ){ DEBUG_HERE
 		int i = 0;
 		for ( i = 0; i < node->dirp->dir_count; i++ ){
-			if ( strcmp( name, node->dirp->dir[i]->name ) == 0 ){
+			if ( strcmp((char *)name, (char *)node->dirp->dir[i]->name ) == 0 ){
 				return 0;
 			}
 		}

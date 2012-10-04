@@ -1,6 +1,8 @@
 NAME=image
 MAKE=gmake
 CONFIG_C_FLAGS=
+EMULATOR=qemu
+EMU_FLAGS=-hda
 
 all: kernel image
 
@@ -17,13 +19,13 @@ image:
 	kern=`wc -c < kern/kernel.bin`;\
 	buf1=$$(( s1/512 + s2/512 + pad/512 + 1 ));\
 	buf2=$$(( kern/512 + 1 ));\
-	echo -e "To boot:\n\tqemu -fda $(NAME).img";\
+	echo -e "To boot:\n\t$(EMULATOR) $(EMU_FLAGS) $(NAME).img";\
 	echo -e "grub: \tkernel $$buf1+$$buf2";\
 	echo -e "grub: \tboot"
 	@echo -e "[\033[0;34mdone\033[0;0m]";
 
 test:
-	qemu -fda $(NAME).img
+	$(EMULATOR) $(EMU_FLAGS) $(NAME).img
 
 clean:
 	-rm *.img

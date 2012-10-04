@@ -17,6 +17,7 @@
 #include <sys/console.h>
 #include <drivers/driver.h>
 #include <drivers/kb.h>
+#include <drivers/ide.h>
 
 #include <sys/kshell.h>
 #include <lib/kmacros.h>
@@ -65,6 +66,8 @@ void kmain( void* mbd, uint32_t initial_stack, unsigned int magic ){
 
 	init_driver_stuff();	kputs( "[\x12+\x17] initialised driver stuff\n" );
 	init_keyboard(); 	printf( "[\x12+\x17] initialised keyboard\n" );
+	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
+				printf( "[\x12+\x17] initialised ide\n" );
 	init_shell();
 	//init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
 	//init_syscalls(); 	printf( "[\x12+\x17] Initialised syscalls\n" );
@@ -72,10 +75,17 @@ void kmain( void* mbd, uint32_t initial_stack, unsigned int magic ){
 
 	asm volatile ( "sti" );
 	//syscall_kputs( "test\n" );
+	unsigned char some_buf[4096];
+	ide_read_sectors( 1, 1, 0, 0, (unsigned int)some_buf);
+
+	for ( i = 0; i < 512; i++ ){
+		//if ( some_buf[i] >= '!' && some_buf[i] <= '~' )
+			printf( "%c", some_buf[i] );
+	}
 
 	//test_thing();
 	
-	kshell( "[\x12shell\x17] $ " );
+	kshell( 1, 0 );
 
 	//switch_to_user_mode();
 	//syscall_kputs( "test\n" );

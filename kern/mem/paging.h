@@ -21,6 +21,7 @@ typedef struct page_dir {
 } page_dir_t;
 
 
+void set_table_perms( unsigned int, unsigned long, page_dir_t * );
 void init_heap( unsigned long start, unsigned long size, page_dir_t * );
 unsigned long *get_page( unsigned long, unsigned char, page_dir_t * );
 unsigned long pop_page( void );

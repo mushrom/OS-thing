@@ -19,17 +19,20 @@ int sh_write( int argc, char **argv );
 int  sh_read( int argc, char **argv );
 int    sh_cd( int argc, char **argv );
 int  sh_atoi( int argc, char **argv );
+int sh_sleep( int argc, char **argv );
 
 void init_shell( ){
-	register_shell_func( "test", sh_test );
-	register_shell_func( "help", sh_help );
-	register_shell_func( "clear", sh_clear );
 	register_shell_func( "ls", sh_list );
-	register_shell_func( "dump", sh_dump );
+	register_shell_func( "cd", sh_cd );
 	register_shell_func( "write", sh_write );
 	register_shell_func( "read", sh_read );
-	register_shell_func( "cd", sh_cd );
+	register_shell_func( "clear", sh_clear );
+	register_shell_func( "dump", sh_dump );
+	register_shell_func( "help", sh_help );
+	register_shell_func( "test", sh_test );
 	register_shell_func( "atoi", sh_atoi );
+	register_shell_func( "sleep", sh_sleep );
+	register_shell_func( "shell", kshell );
 }
 
 void register_shell_func( char *name, shell_func_t function ){
@@ -38,10 +41,13 @@ void register_shell_func( char *name, shell_func_t function ){
 	cmd_count++;
 }
 
-void kshell( char *PS1 ){
-	char buf, *cmd, **args;
+int kshell( int argc, char **argv ){
+	char buf, *cmd, **args, *PS1 = "[\x12shell\x17] $ ";
 	fs_cwd = fs_root;
-	int running = 1, i = 0, j = 0, argc = 0, cmd_found = 0;
+	int running = 1, i = 0, j = 0, arg_no = 0, cmd_found = 0;
+
+	if ( argc > 1 )
+		PS1 = argv[1];
 
 	cmd  = (void *)kmalloc( STR_LIMIT, 0, 0 );
 	args = (void *)kmalloc( STR_LIMIT, 0, 0 );
@@ -70,12 +76,12 @@ void kshell( char *PS1 ){
 		cmd[i] = 0;
 
 		/* Split input up */
-		argc = 1;
+		arg_no = 1;
 		for ( j = 1; *cmd != 0; cmd++ ){
 			if ( *cmd == ' ' ){
 				args[j++] = cmd + 1;
 				*cmd = 0;
-				argc++;
+				arg_no++;
 			}
 			if ( *cmd == '\'' || *cmd == '\"' ){
 				*cmd = 0; args[j - 1]++;
@@ -89,7 +95,7 @@ void kshell( char *PS1 ){
 		for ( j = 0; j < cmd_count; j++ ){
 			if ( commands[j].name && commands[j].function && 
 				strcmp( args[0], commands[j].name ) == 0 ){
-				commands[j].function( argc, args );
+				commands[j].function( arg_no, args );
 				cmd_found = 1;
 			}
 		}
@@ -97,6 +103,8 @@ void kshell( char *PS1 ){
 			printf( "Unknown command: \"%s\"\n", args[0] );
 		}
 	}
+
+	return 0;
 }
 
 int sh_test( int argc, char **argv ){
@@ -192,7 +200,8 @@ int  sh_read( int argc, char **argv ){
 	if ( fp ){
 		bytes_read = fs_read( fp, buf, 256 );
 	} else {
-		bytes_read = -1;
+		printf( "Could not find file\n" );
+		return 0;
 	}
 	if ( bytes_read == -1 ){
 		printf( "Could not read file\n" );
@@ -230,6 +239,20 @@ int  sh_atoi( int argc, char **argv ){
 	printf( "%d\n", atoi( argv[1] ));
 
 	return 0;
+}
+
+int sh_sleep( int argc, char **argv ){
+	if ( argc < 2 )
+		return 0;
+	int i = atoi( argv[1] );
+
+	while ( i-- ){
+		printf( "Resuming in %d seconds..\r", i + 1 );
+		wait( 1 );
+	}
+	printf( "\n" );
+
+	return i;
 }
 
 #endif

@@ -45,6 +45,7 @@ void init_heap( unsigned long start, unsigned long size, page_dir_t *dir ){
 		set_table_perms( PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, addr, dir );
 	}
 
+	i = start;
 	/*
 	printf( "    block size: %d\n", block_size );
 

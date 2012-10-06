@@ -159,6 +159,8 @@ int  sh_list( int argc, char **argv ){
 				color = 0x19;
 			if ( sb.type == FS_CHAR_D )
 				color = 0x15;
+			if ( sb.type == FS_BLOCK_D )
+				color = 0x14;
 
 			printf( "%c%s\x17\t", color, entry->name );
 			items++;
@@ -203,18 +205,22 @@ int sh_write( int argc, char **argv ){
 
 int  sh_read( int argc, char **argv ){
 	file_node_t *fp = fs_cwd;
-	char buf[256];
+	char buf[0x2000];
+	int size = 512;
 	int bytes_read = 0;
+	int i = 0;
 
 	if ( argc < 2 ){
 		printf( "Need arguments!\n" );
 		return 0;
 	}
+	if ( argc > 2 )
+		size = atoi( argv[2] );
 
 	//fs_open( fp, argv[1], 0777 );
 	fp = fs_find_node( fp, argv[1] );
 	if ( fp ){
-		bytes_read = fs_read( fp, buf, 256 );
+		bytes_read = fs_read( fp, buf, size );
 	} else {
 		printf( "Could not find file\n" );
 		return 0;
@@ -222,9 +228,14 @@ int  sh_read( int argc, char **argv ){
 	if ( bytes_read == -1 ){
 		printf( "Could not read file\n" );
 	} else {
-		printf( "read %d bytes\n%s\n", bytes_read, buf );
+		printf( "read %d bytes\n", bytes_read );
+		if ( bytes_read ){
+			for ( i = 0; i < bytes_read; i++ )
+				printf( "%c", buf[i] );
+			printf( "\n" );
+		}
 	}
-	memset( buf, 0, 256 );
+	memset( buf, 0, 0x2000 );
 	
 	return 0;
 }

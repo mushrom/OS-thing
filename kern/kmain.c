@@ -78,13 +78,6 @@ void kmain( void* mbd, uint32_t initial_stack, unsigned int magic ){
 
 	asm volatile ( "sti" );
 	//syscall_kputs( "test\n" );
-	unsigned char some_buf[4096];
-	ide_read_sectors( 1, 8, 250, 0, (unsigned int)some_buf);
-
-	for ( i = 0; i < 512; i++ ){
-		//if ( some_buf[i] >= '!' && some_buf[i] <= '~' )
-			printf( "%c", some_buf[i] );
-	}
 
 	//test_thing();
 	

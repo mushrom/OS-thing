@@ -54,8 +54,7 @@ typedef struct file_node {
 	unsigned long	size;
 	unsigned long	links;
 	unsigned long 	flags;
-	unsigned long	maj_num;
-	unsigned long	min_num;
+	unsigned long	dev_id;
 	struct dirp 	*dirp;
 
 	read_func  	read;

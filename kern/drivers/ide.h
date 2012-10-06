@@ -4,6 +4,8 @@
 #include <lib/stdio.h>
 #include <arch/x86/timer.h>
 #include <arch/x86/isr.h>
+#include <fs/fs.h>
+#include <fs/devfs.h>
 
 #define ATA_SR_BSY     0x80
 #define ATA_SR_DRDY    0x40
@@ -92,7 +94,7 @@ unsigned char ide_ata_access( unsigned char, unsigned char, unsigned int, unsign
 unsigned char ide_atapi_read( unsigned char, unsigned int, unsigned char, unsigned short, unsigned int );
 void ide_irq_handler( registers_t regs );
 void ide_wait_irq( );
-void ide_read_sectors( unsigned char, unsigned char, unsigned int, unsigned short, unsigned int );
-void ide_write_sectors( unsigned char, unsigned char, unsigned int, unsigned short, unsigned int );
+int ide_read_sectors( unsigned char, unsigned char, unsigned int, unsigned short, unsigned int );
+int ide_write_sectors( unsigned char, unsigned char, unsigned int, unsigned short, unsigned int );
 
 #endif

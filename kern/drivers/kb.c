@@ -66,17 +66,17 @@ static void keyboard_handler( registers_t regs ){
  * It's a waste of resources to constantly poll, especially when it's already pushing
  * to a buffer on interrupt. This is here just to fit with the driver model. */
 
-/* Commented out until devfs is implemented 
-static void read_kb( int d, void *buf, size_t size ){
+static int read_kb( file_node_t *node, void *buf, size_t size ){
 	unsigned int i;
 	char *out_buf = buf;
+	read_buf = 0;
 	for ( i = 0; i < size; i++ ){
 		while ( !read_buf );
 		out_buf[i] = read_buf;
 		read_buf = 0;
 	}
+	return i;
 }
-*/
 
 void unload_keyboard( void ){
 	unregister_interrupt_handler( IRQ1 );
@@ -84,23 +84,14 @@ void unload_keyboard( void ){
 
 void init_keyboard( void ){
 	register_interrupt_handler( IRQ1, &keyboard_handler );
-/*
-	kernel_driver_t kb_driver;
 
-	memcpy( kb_driver.name, "keyboard", 9 );
-	kb_driver.id		= 0xfee1dead;
-	kb_driver.type 		= USER_IN;
-	kb_driver.init		= 0;
-	kb_driver.write		= 0;
-	kb_driver.read		= (read_func)read_kb;
-	kb_driver.pwrite	= 0;
-	kb_driver.pread		= 0;
-	kb_driver.ioctl		= 0;
-	kb_driver.unload	= (unload_func)unload_keyboard;
-	//kb_driver.unload	= 0;
+	file_node_t kb_driver;
+	memset( &kb_driver, 0, sizeof( file_node_t ));
+	memcpy( kb_driver.name, "kb0", 4 );
+	kb_driver.type	= FS_CHAR_D;
+	kb_driver.read	= read_kb;
 
-	register_driver( kb_driver );
-*/
+	devfs_register_device( kb_driver );
 }
 
 #endif

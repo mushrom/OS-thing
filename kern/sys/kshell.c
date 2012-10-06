@@ -20,6 +20,7 @@ int  sh_read( int argc, char **argv );
 int    sh_cd( int argc, char **argv );
 int  sh_atoi( int argc, char **argv );
 int sh_sleep( int argc, char **argv );
+int sh_debug( int argc, char **argv );
 
 void init_shell( ){
 	register_shell_func( "ls", sh_list );
@@ -27,6 +28,7 @@ void init_shell( ){
 	register_shell_func( "write", sh_write );
 	register_shell_func( "read", sh_read );
 	register_shell_func( "clear", sh_clear );
+	register_shell_func( "debug", sh_debug );
 	register_shell_func( "dump", sh_dump );
 	register_shell_func( "help", sh_help );
 	register_shell_func( "test", sh_test );
@@ -120,7 +122,7 @@ int sh_help( int argc, char **argv ){
 	printf( "commands availible:\n" );
 	for ( i = 0; i < cmd_count; i++ ){
 		printf( "\t%s", commands[i].name );
-		if (i%5 == 0 && i) printf( "\n" );
+		if ((i+1)%5 == 0 && i) printf( "\n" );
 	}
 	printf( "\n" );
 	return 0;
@@ -132,13 +134,15 @@ int sh_clear( int argc, char **argv ){
 }
 
 int  sh_list( int argc, char **argv ){
-	file_node_t *fp = fs_cwd;
+	file_node_t *fp = fs_cwd, *file_thing;
 	struct dirp *dir;
 	struct dirent *entry;
+	struct vfs_stat sb;
 	int items = 0;
+	char color = 0x17;
 
 	if ( argc > 1 ){
-		fp = fs_find_node( fs_root, argv[1] );
+		fp = fs_find_node( fs_cwd, argv[1] );
 		if ( !fp ){
 			printf( "Could not find file\n" );
 			return -1;
@@ -148,11 +152,23 @@ int  sh_list( int argc, char **argv ){
 	dir = fs_opendir( fp );
 	if ( dir ){
 		while (( entry = fs_readdir( dir ))){
-			printf( "%s\n", entry->name );
+			file_thing = fs_find_node( fp, (char *)entry->name );
+			fs_stat( file_thing, &sb );
+
+			if ( sb.type == FS_DIR )
+				color = 0x19;
+			if ( sb.type == FS_CHAR_D )
+				color = 0x15;
+
+			printf( "%c%s\x17\t", color, entry->name );
 			items++;
+			if ( items % 8 == 0 )
+				printf( "\n" );
+			color = 0x17;
 		}
+		printf( "\n" );
 		fs_closedir( fp );
-		printf( "%d items\n", items );
+		//printf( "%d items\n", items );
 	} else {
 		printf( "Could not open directory\n" );
 	}
@@ -253,6 +269,11 @@ int sh_sleep( int argc, char **argv ){
 	printf( "\n" );
 
 	return i;
+}
+
+int sh_debug( int argc, char **argv ){
+	printf( "%s:%d\n", g_errfile, g_errline );
+	return 0;
 }
 
 #endif

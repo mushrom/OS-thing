@@ -1,7 +1,7 @@
 #ifndef _kernel_console_c
 #define _kernel_console_c
 
-#include <sys/console.h>
+#include <drivers/console.h>
 //static int console_write( int screen, void *buf, uint32_t size );
 
 char *videoram = (char *)VIDEORAM;
@@ -15,15 +15,26 @@ void cls( void ){
 	cur_x_pos = cur_y_pos = 0;
 }
 
+void move_cursor( ){
+	unsigned temp;
+        temp = (cur_y_pos * 80) + cur_x_pos;  //+ (cur_x_pos / 2);
+	//temp = 10;
+
+	outb( 0x3d4, 14 );
+	outb( 0x3d5, temp >> 8 );
+	outb( 0x3d4, 15 );
+	outb( 0x3d5, temp );
+
+}
 
 void _kcheck_scroll( void ){
 	unsigned short int i;
 	if ( cur_y_pos > 24 ){
 		for ( i = 0; i < 24; i++ ){
-			memcpy( videoram+(i*XSIZE), videoram+((i+1)*XSIZE), XSIZE );
+			memcpy( videoram+(i*XSIZE*2), videoram+((i+1)*XSIZE*2), XSIZE*2 );
 		}
 		for ( ; cur_y_pos > 24; cur_y_pos-- );
-		memset( videoram+(i*XSIZE), 0, XSIZE );
+		memset( videoram+(i*XSIZE*2), 0, XSIZE*2 );
 	}
 }
 
@@ -31,9 +42,10 @@ void kputchar( unsigned char input ){
 	unsigned int pos = (( cur_y_pos * XSIZE ) + cur_x_pos );
 
 	if ( input >= 0x20 && input < 0x7f ){
-		videoram[pos] = input;
-		videoram[pos+1] = color;
-		cur_x_pos+=2;
+		videoram[pos*2] = input;
+		videoram[pos*2+1] = color;
+		videoram[pos*2+3] = color;
+		cur_x_pos++;
 
 		if ( cur_x_pos > XSIZE ){
 			cur_y_pos++;
@@ -45,13 +57,14 @@ void kputchar( unsigned char input ){
 	} else if ( input == '\r' ) {
 		cur_x_pos = 0;
 	} else if ( input == '\t' ) {
-		cur_x_pos += 16 - ( cur_x_pos % 16 );
+		cur_x_pos += 8 - ( cur_x_pos % 8 );
 	} else if ( input == '\b' ) {
-		cur_x_pos -= 2;
-		videoram[pos-2] = 0;
+		cur_x_pos --;
+		videoram[pos*2-2] = ' ';
 	} else if ( input >= 0x10 && input <= 0x1f ){
 		set_color( input - 0x10 );
 	}
+	move_cursor();
 	_kcheck_scroll();
 }
 
@@ -79,6 +92,7 @@ static int console_write( int screen, void *buf, uint32_t size ){
 */
 
 void init_console(){
+
 /*
 	kernel_driver_t console_driver;
 

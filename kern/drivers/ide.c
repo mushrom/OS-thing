@@ -104,10 +104,11 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 	register_interrupt_handler( IRQ15, ide_irq_handler );
 	for ( i = 0; i < 4; i++ ){
 		if ( ide_devices[i].reserved ){
-			printf( "    ide%d: Found %s drive, %dkb: %s\n", 
+			printf( "    ide%d: Found %s drive, %dkb (%d): %s\n", 
 				i,
 				(char *[]){"ATA", "ATAPI"}[ide_devices[i].type],
 				ide_devices[i].size / 2,
+				ide_devices[i].size, 
 				ide_devices[i].model
 			);
 		}
@@ -398,6 +399,7 @@ void ide_wait_irq( ){
 	while (!ide_irq_invoked);
 	ide_irq_invoked = 0;
 }
+
 void ide_read_sectors( unsigned char drive, unsigned char numsects, unsigned int lba,
 			unsigned short es, unsigned int edi ){
 

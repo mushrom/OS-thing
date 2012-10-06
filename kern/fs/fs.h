@@ -75,9 +75,9 @@ typedef struct file_node {
 	struct file_node *mount;
 } file_node_t;
 
-typedef struct file_header {
+typedef struct vfs_file_header {
 	void *data;
-} file_header_t;
+} vfs_file_header_t;
 
 struct dirent {
 	unsigned char 	name[ MAX_NAME_LEN ];
@@ -87,6 +87,16 @@ struct dirent {
 struct dirp {
 	struct dirent *dir[ MAX_DIRS ];
 	unsigned long dir_count, dir_ptr;
+};
+
+struct vfs_stat {
+	file_type_t 	type;
+
+	unsigned long	uid;
+	unsigned long	gid;
+	unsigned long 	time;
+	unsigned long 	size;
+	unsigned long	mask;
 };
 
 void init_vfs( void );
@@ -99,6 +109,7 @@ int  fs_pread( file_node_t *, void *, unsigned long, unsigned long );
 int  fs_ioctl( file_node_t *, unsigned long, ... );
 int   fs_open( file_node_t *, char *, int );
 int  fs_close( file_node_t * );
+int   fs_stat( file_node_t *, struct vfs_stat * );
 file_node_t *fs_find_node( file_node_t *, char * );
 
 struct dirp *fs_opendir( file_node_t * );
@@ -107,5 +118,7 @@ int fs_mkdir( file_node_t *, char *name, unsigned long );
 
 struct dirent *fs_readdir( struct dirp *dir ); 
 
+struct dirp *vfs_opendir( file_node_t * );
+int vfs_closedir( file_node_t * );
 
 #endif

@@ -12,6 +12,7 @@
 #include <mem/paging.h>
 
 #include <fs/fs.h>
+#include <fs/devfs.h>
 
 /*Drivers*/
 #include <sys/console.h>
@@ -47,7 +48,7 @@ void kmain( void* mbd, uint32_t initial_stack, unsigned int magic ){
 	#define TIMER_FREQ 50
 	initial_esp = initial_stack;
 	cls();
-	set_color( COLOR_GRAY );
+	set_color( COLOR_LGRAY );
 
 	kputs( "[\x19obsidian\x17 OS]\n" );
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
@@ -61,8 +62,9 @@ void kmain( void* mbd, uint32_t initial_stack, unsigned int magic ){
 	init_tables(); 		kputs( "[\x12+\x17] initialised tables\n" );
 	init_paging(); 		printf( "[\x12+\x17] initialised paging\n" );
 	init_timer(TIMER_FREQ);	printf( "[\x12+\x17] Initialised timer to %uhz\n", TIMER_FREQ );
-	//init_heap( KHEAP_START, 0x10000, kernel_dir );	printf( "[\x12+\x17] initialised heap\n" );
+	init_heap( KHEAP_START, 0x10000, kernel_dir );	printf( "[\x12+\x17] initialised heap\n" );
 	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
+	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
 
 	init_driver_stuff();	kputs( "[\x12+\x17] initialised driver stuff\n" );
 	init_keyboard(); 	printf( "[\x12+\x17] initialised keyboard\n" );
@@ -76,7 +78,7 @@ void kmain( void* mbd, uint32_t initial_stack, unsigned int magic ){
 	asm volatile ( "sti" );
 	//syscall_kputs( "test\n" );
 	unsigned char some_buf[4096];
-	ide_read_sectors( 1, 1, 0, 0, (unsigned int)some_buf);
+	ide_read_sectors( 1, 8, 250, 0, (unsigned int)some_buf);
 
 	for ( i = 0; i < 512; i++ ){
 		//if ( some_buf[i] >= '!' && some_buf[i] <= '~' )

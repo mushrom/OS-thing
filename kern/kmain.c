@@ -15,7 +15,7 @@
 #include <fs/devfs.h>
 
 /*Drivers*/
-#include <sys/console.h>
+#include <drivers/console.h>
 #include <drivers/driver.h>
 #include <drivers/kb.h>
 #include <drivers/ide.h>
@@ -67,6 +67,7 @@ void kmain( void* mbd, uint32_t initial_stack, unsigned int magic ){
 	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
 
 	init_driver_stuff();	kputs( "[\x12+\x17] initialised driver stuff\n" );
+	init_console();
 	init_keyboard(); 	printf( "[\x12+\x17] initialised keyboard\n" );
 	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
 				printf( "[\x12+\x17] initialised ide\n" );

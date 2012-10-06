@@ -1,7 +1,7 @@
 #ifndef _kernel_shell_h
 #define _kernel_shell_h
 
-#include <sys/console.h>
+//#include <sys/console.h>
 #include <sys/skio.h>
 #include <sys/syscall.h>
 

@@ -3,8 +3,9 @@
 #include <fs/fs.h>
 
 #define DEVFS_MAX_INODES 1024
+struct file_node;
 void init_devfs( void );
-void devfs_register_device( file_node_t device );
-file_node_t *devfs_find_node( file_node_t *node, char *name ); 
+void devfs_register_device( struct file_node device );
+struct file_node *devfs_find_node( struct file_node *node, char *name ); 
 
 #endif

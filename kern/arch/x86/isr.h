@@ -1,7 +1,6 @@
 #ifndef _kernel_isr_h
 #define _kernel_isr_h
 
-#include <sys/console.h>
 #include <lib/stdint.h>
 #include <lib/stdio.h>
 #include <lib/kmacros.h>

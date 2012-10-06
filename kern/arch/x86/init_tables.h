@@ -1,6 +1,6 @@
 #ifndef _kernel_arch_x86_init_tables_h
 #define _kernel_arch_x86_init_tables_h
-#include <sys/console.h>
+//#include <sys/console.h>
 #include <stdint.h>
 #include <arch/x86/isr.h>
 

@@ -2,8 +2,9 @@
 #define _kernel_console_h
 #include <lib/string.h>
 #include <drivers/driver.h>
+#include <fs/devfs.h>
 
-#define XSIZE 80 /*Actual terminal size is 80x25, this is 160 because the videoram needs 16 bit input*/
+#define XSIZE 80
 #define YSIZE 25
 
 #define VIDEORAM 0xb8000;

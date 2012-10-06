@@ -80,8 +80,7 @@ void set_color( unsigned char new_color ){
 }
 
 /* Driver interface */
-/* Commented out until devfs is implemented
-static int console_write( int screen, void *buf, uint32_t size ){
+static int console_write( file_node_t *node, void *buf, unsigned long size ){
 	char *in_buf = buf;
 	int i = 0;
 	for ( i = 0; i < size; i++ ){
@@ -89,26 +88,16 @@ static int console_write( int screen, void *buf, uint32_t size ){
 	}
 	return i;
 }
-*/
 
 void init_console(){
+	file_node_t console_driver;
 
-/*
-	kernel_driver_t console_driver;
+	memset( &console_driver, 0, sizeof( file_node_t ));
+	memcpy( console_driver.name, "tty", 4 );
+	console_driver.type	= FS_CHAR_D;
+	console_driver.write	= console_write;
 
-	memcpy( console_driver.name, "console", MAX_NAME );
-	console_driver.id     = 0x5eeca7;
-	console_driver.type   = USER_OUT;
-	console_driver.init   = 0;
-	console_driver.write  = (write_func)console_write;
-	console_driver.read   = 0;
-	console_driver.pwrite = 0;
-	console_driver.pread  = 0;
-	console_driver.ioctl  = 0;
-	console_driver.unload = 0;
-
-	register_driver( console_driver );
-*/
+	devfs_register_device( console_driver );
 }
 
 #endif

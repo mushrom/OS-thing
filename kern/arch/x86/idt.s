@@ -82,7 +82,7 @@ IRQ	14,	46
 IRQ	15,	47
 
 ISR_NOERROR 48
-ISR_NOERROR 80
+ISR_NOERROR 80 
 
 [EXTERN isr_handler]
 [EXTERN irq_handler]

@@ -5,6 +5,11 @@
 #include <fs/fs.h>
 #include <fs/devfs.h>
 
+#define KB_LA 0xf0
+#define KB_RA 0xf1
+#define KB_UA 0xf2
+#define KB_DA 0xf3
+
 void init_keyboard( void );
 
 #endif

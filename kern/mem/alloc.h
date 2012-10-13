@@ -1,6 +1,7 @@
 #ifndef _kernel_alloc_h
 #define _kernel_alloc_h
 #include <mem/paging.h>
+#include <lib/kmacros.h>
 
 #define KHEAP_START 0xc0000000
 #define KHEAP_SIZE  0x100000   //That's 1M
@@ -14,9 +15,9 @@ typedef struct kmemnode {
 } kmemnode_t;
 
 typedef struct heap {
-	kmemnode_t *kmemroot;
-	kmemnode_t *kmemptr;
-	kmemnode_t *kmemmove;
+	kmemnode_t *memroot;
+	kmemnode_t *memptr;
+	kmemnode_t *memmove;
 	unsigned long size;
 	unsigned long max;
 } heap_t;

@@ -2,7 +2,7 @@
 #define _kernel_keyboard_c
 #include <drivers/kb.h>
 
-#define S 1 /* S = shift */
+#define KB_SH 1 /* S = shift */
 
 unsigned int shift_on = 0;
 unsigned char read_buf = 0;
@@ -10,26 +10,26 @@ unsigned char map_set  = 0;
 
 unsigned char us_kbd[128] = {
 	 0,   27, 
-	'1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-	'-', '=','\b','\t',
-	'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p',  '[',  ']', '\n',    0,
-	'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'',  '`',    S, '\\', 
-	'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/',    S,  '*',    0,  ' ',
-	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-	'w',   0, '-', 'a',   0, 'd', '+',   0, 's',   0,    0,    0,    0,    0,
-	  0,   0,   0,   0,   0
+	'1', '2', '3',  '4', '5', '6', '7', '8', '9', '0',
+	'-', '=','\b', '\t',
+	'q', 'w', 'e',  'r', 't',  'y', 'u', 'i',  'o', 'p',  '[',  ']', '\n',    0,
+	'a', 's', 'd',  'f', 'g',  'h', 'j', 'k',  'l', ';', '\'',  '`',KB_SH, '\\', 
+	'z', 'x', 'c',  'v', 'b',  'n', 'm', ',',  '.', '/',KB_SH,  '*',    0,  ' ',
+	  0,   0,   0,    0,   0,    0,   0,   0,    0,   0,    0,    0,    0,    0,
+      KB_UA,   0, '-',KB_LA,   0,KB_RA, '+',   0,KB_DA,   0,    0,    0,    0,    0,
+	  0,   0,   0,    0,   0
 };
 
 unsigned char us_kbd_shift[128] = {
 	 0,   27, 
-	'!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
-	'_', '+','\b','\t',
-	'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',  '{',  '}', '\n',    0,
-	'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '\"',  '~',    S,  '|', 
-	'Z', 'X', 'C', 'V', 'B', 'N', 'M', '<', '>', '?',    S,  '*',    0,  ' ',
-	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-	'w',   0, '-', 'a',   0, 'd', '+',   0, 's',   0,    0,    0,    0,    0,
-	  0,   0,   0,   0,   0
+	'!', '@', '#',  '$', '%', '^', '&', '*', '(', ')',
+	'_', '+','\b', '\t',
+	'Q', 'W', 'E',  'R', 'T',  'Y', 'U', 'I',  'O', 'P',  '{',  '}', '\n',    0,
+	'A', 'S', 'D',  'F', 'G',  'H', 'J', 'K',  'L', ':', '\"',  '~',KB_SH,  '|', 
+	'Z', 'X', 'C',  'V', 'B',  'N', 'M', '<',  '>', '?',KB_SH,  '*',    0,  ' ',
+	  0,   0,   0,    0,   0,    0,   0,   0,    0,   0,    0,    0,    0,    0,
+      KB_UA,   0, '-',KB_LA,   0,KB_RA, '+',   0,KB_DA,   0,    0,    0,    0,    0,
+	  0,   0,   0,    0,   0
 };
 
 unsigned char 	*lower_map = us_kbd, 
@@ -46,12 +46,12 @@ static void keyboard_handler( registers_t regs ){
 	scancode = inb( 0x60 );
 	if ( scancode & 0x80 ){
 		buf = map[ scancode - 0x80 ];
-		if ( buf == S ){
+		if ( buf == KB_SH ){
 			map = lower_map;
 		} 
 	} else {
 		buf = map[ scancode ];
-		if ( buf == S ){
+		if ( buf == KB_SH ){
 			map = upper_map;
 		} else {
 			/* This doesn't draw it on screen, it pushes it into an 
@@ -83,7 +83,6 @@ void unload_keyboard( void ){
 }
 
 void init_keyboard( void ){
-	register_interrupt_handler( IRQ1, &keyboard_handler );
 
 	file_node_t kb_driver;
 	memset( &kb_driver, 0, sizeof( file_node_t ));
@@ -92,6 +91,7 @@ void init_keyboard( void ){
 	kb_driver.read	= read_kb;
 
 	devfs_register_device( kb_driver );
+	register_interrupt_handler( IRQ1, &keyboard_handler );
 }
 
 #endif

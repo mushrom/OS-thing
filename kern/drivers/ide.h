@@ -6,6 +6,7 @@
 #include <arch/x86/isr.h>
 #include <fs/fs.h>
 #include <fs/devfs.h>
+#include <lib/kmacros.h>
 
 #define ATA_SR_BSY     0x80
 #define ATA_SR_DRDY    0x40

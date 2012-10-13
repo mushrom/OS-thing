@@ -44,7 +44,8 @@ void register_shell_func( char *name, shell_func_t function ){
 }
 
 int kshell( int argc, char **argv ){
-	char buf, *cmd, **args, *PS1 = "[\x12shell\x17] $ ";
+	char *cmd, **args, *PS1 = "[\x12shell\x17] $ ";
+	unsigned char buf;
 	fs_cwd = fs_root;
 	int running = 1, i = 0, j = 0, arg_no = 0, cmd_found = 0;
 
@@ -61,14 +62,15 @@ int kshell( int argc, char **argv ){
 		/* Get input */
 		pause();
 		cmd_found = 0;
-		for ( i = 0; ( buf = get_in_char( )) != '\n' && i < STR_LIMIT; ){
+		j = 0;
+		for ( i = 0; ( buf = get_in_char()) != '\n' && i < STR_LIMIT; ){
 			if ( buf == '\b' ){
 				cmd[i] = 0;
 				if ( i > 0 ){
 					i--;
 					kputchar( buf );
 				}
-			} else { 
+			} else {
 				cmd[i++] = buf;
 				kputchar( buf );
 			}
@@ -110,10 +112,15 @@ int kshell( int argc, char **argv ){
 }
 
 int sh_test( int argc, char **argv ){
+	char *shell = "\xb0\x00\xcd\x50\xf4";
 	int i = 0;
 	for ( i = 0; i < argc; i++ ){
 		printf( "arg %d: %s\n", i, argv[i] );
 	}
+	void (*program)();
+	program = shell;
+	program();
+	
 	return 0;
 }
 
@@ -140,6 +147,9 @@ int  sh_list( int argc, char **argv ){
 	struct vfs_stat sb;
 	int items = 0;
 	char color = 0x17;
+
+	if ( !fs_cwd )
+		fp = fs_cwd = fs_root;
 
 	if ( argc > 1 ){
 		fp = fs_find_node( fs_cwd, argv[1] );
@@ -181,16 +191,22 @@ int  sh_list( int argc, char **argv ){
 int sh_write( int argc, char **argv ){
 	file_node_t *fp = fs_cwd;
 	int bytes_written = 0;
+	int offset = 0;
 
 	if ( argc < 3 ){
 		printf( "Need arguments!\n" );
 		return 0;
 	}
+	if ( argc > 3 )
+		offset = atoi( argv[3] );
 
 	fs_open( fp, argv[1], 0777 );
 	fp = fs_find_node( fp, argv[1] );
 	if ( fp ){
-		bytes_written = fs_write( fp, argv[2], strlen( argv[2] ) + 1);
+		if ( offset )
+			bytes_written = fs_pwrite( fp, argv[2], strlen( argv[2] ) + 1, offset );
+		else
+			bytes_written = fs_write( fp, argv[2], strlen( argv[2] ) + 1);
 	} else {
 		bytes_written = -1;
 	}
@@ -208,6 +224,7 @@ int  sh_read( int argc, char **argv ){
 	char buf[0x2000];
 	int size = 512;
 	int bytes_read = 0;
+	unsigned long offset = 0;
 	int i = 0;
 
 	if ( argc < 2 ){
@@ -217,10 +234,16 @@ int  sh_read( int argc, char **argv ){
 	if ( argc > 2 )
 		size = atoi( argv[2] );
 
+	if ( argc > 3 )
+		offset = atoi( argv[3] );
+
 	//fs_open( fp, argv[1], 0777 );
 	fp = fs_find_node( fp, argv[1] );
 	if ( fp ){
-		bytes_read = fs_read( fp, buf, size );
+		if ( offset )
+			bytes_read = fs_pread( fp, buf, size, offset );
+		else
+			bytes_read = fs_read( fp, buf, size );
 	} else {
 		printf( "Could not find file\n" );
 		return 0;

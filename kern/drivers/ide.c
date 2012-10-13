@@ -30,6 +30,8 @@ unsigned char atapi_packet[12] = { 0xa8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 unsigned char package[3] = {0};
 int ide_driver_read( file_node_t *node, void *buf, unsigned long size );
 int ide_driver_write( file_node_t *node, void *buf, unsigned long size );
+int ide_driver_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset );
+int ide_driver_pwrite( file_node_t *node, void *buf, unsigned long size, unsigned long offset );
 
 void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned int bar3, unsigned int bar4 ){
 	int i, j, k, count = 0;
@@ -109,10 +111,10 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 	char *dev_name = "ide0";
 	for ( i = 0; i < 4; i++ ){
 		if ( ide_devices[i].reserved ){
-			printf( "    ide%d: Found %s drive, %dkb (%d): %s\n", 
-				i,
+			printf( "    %s: Found %s drive, %dkb (%d): %s\n", 
+				dev_name,
 				(char *[]){"ATA", "ATAPI"}[ide_devices[i].type],
-				ide_devices[i].size / 2,
+				(ide_devices[i].size + 1)/ 2,
 				ide_devices[i].size, 
 				ide_devices[i].model
 			);
@@ -122,6 +124,8 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 			ide_file.type	= FS_BLOCK_D;
 			ide_file.read	= ide_driver_read;
 			ide_file.write	= ide_driver_write;
+			ide_file.pread	= ide_driver_pread;
+			ide_file.pwrite	= ide_driver_pwrite;
 			ide_file.dev_id	= i;
 			devfs_register_device( ide_file );
 			dev_name[3]++;
@@ -152,7 +156,7 @@ int ide_driver_read( file_node_t *node, void *buf, unsigned long size ){
 	return j;
 }
 
-int ide_driver_write( file_node_t *node, void *buf, unsigned long size ){
+int ide_driver_write( file_node_t *node, void *buf, unsigned long size ){ DEBUG_HERE
 	char write_buf[512];
 	char *in_buf = buf;
 	unsigned long sectors = ( size / 512 ) + (( size % 512 )?1:0);
@@ -161,7 +165,53 @@ int ide_driver_write( file_node_t *node, void *buf, unsigned long size ){
 
 	printf( "[debug] writing %u sectors\n", sectors );
 
-	for ( i = 0; i < sectors && !ret; i++ ){
+	for ( i = 0; i < sectors && !ret; i++ ){ DEBUG_HERE
+		memset( &write_buf, 0, 512 );
+		for ( l = 0, k = j; j < k + 512 && j < size; l++, j++ ){ DEBUG_HERE
+			write_buf[l] = in_buf[j];
+		 }
+		DEBUG_HERE;
+		ret = ide_write_sectors( device, 1, i, 0, (unsigned int)write_buf );
+	 DEBUG_HERE }
+
+	return j;
+ DEBUG_HERE }
+
+int ide_driver_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
+	char read_buf[512];
+	char *in_buf = buf;
+	unsigned long sectors = ( size / 512 ) + (( size % 512 )?1:0);
+	unsigned long soffset = offset / 512;
+	unsigned int  i = 0, j = 0, l = 0, k = 0, device = node->dev_id;
+	int ret = 0;
+
+	printf( "[debug] reading %u sectors\n", sectors );
+
+	for ( i = soffset; i < sectors + soffset && !ret; i++ ){
+		printf( "[debug] Got sector %d\n", i );
+		ret = ide_read_sectors( device, 1, i, 0, (unsigned int)read_buf );
+		if ( !ret ){
+			for ( k = j, l = 0; j < k + 512 && j < size; j++, l++ ){
+				in_buf[j] = read_buf[l];
+			}
+		} 
+		memset( &read_buf, 0, 512 );
+	}
+
+	return j;
+}
+
+int ide_driver_pwrite( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
+	char write_buf[512];
+	char *in_buf = buf;
+	unsigned long sectors = ( size / 512 ) + (( size % 512 )?1:0);
+	unsigned long soffset = offset / 512;
+	unsigned int  i = 0, j = 0, l = 0, k = 0, device = node->dev_id;
+	int ret = 0;
+
+	printf( "[debug] writing %u sectors\n", sectors );
+
+	for ( i = soffset; i < sectors + soffset && !ret; i++ ){
 		memset( &write_buf, 0, 512 );
 		for ( l = 0, k = j; j < k + 512 && j < size; l++, j++ ){
 			write_buf[l] = in_buf[j];

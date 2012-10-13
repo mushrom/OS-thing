@@ -1,31 +1,30 @@
 ENTRY (loader)
 
-SECTIONS
-{
-    . = 0x00100000;
+SECTIONS {
+	. = 0x00100000;
 
-    .text ALIGN (0x1000) :
-    {
-        *(.text)
-    }
+	.__mbHeader : {
+		*(.__mbHeader)
+	}
 
-    .rodata ALIGN (0x1000) :
-    {
-        *(.rodata*)
-    }
+	.text ALIGN (0x1000) : {
+		*(.text)
+	}
 
-    .data ALIGN (0x1000) :
-    {
-        *(.data)
-    }
+	.rodata ALIGN (0x1000) : {
+		*(.rodata*)
+	}
 
-    .bss :
-    {
-        sbss = .;
-        *(COMMON)
-        *(.bss)
-        ebss = .;
-    }
+	.data ALIGN (0x1000) : {
+		*(.data)
+	}
 
-    end = .; _end = .; __end = .;
+	.bss : {
+		sbss = .;
+		*(COMMON)
+		*(.bss)
+		ebss = .;
+	}
+
+	end = .; _end = .; __end = .;
 }

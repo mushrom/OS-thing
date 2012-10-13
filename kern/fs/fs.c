@@ -42,7 +42,7 @@ void init_vfs( void ){ DEBUG_HERE
 file_node_t *vfs_find_node( file_node_t *node, char *name ){ DEBUG_HERE
 	int i = 0, has_subdir = 0;
 	file_node_t *ret = 0;
-	char *sub_dir;
+	char *sub_dir = 0;
 
 	for ( i = 0; i < strlen( name ); i++ ){ DEBUG_HERE
 		if ( name[i] == '/' ){ DEBUG_HERE

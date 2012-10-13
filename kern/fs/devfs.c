@@ -69,13 +69,13 @@ void devfs_register_device( file_node_t device ){
 	devfs_root->dirp->dir[ index ]->inode = new_device->inode;
 	devfs_root->dirp->dir_count++;
 
-	printf( "    Added new device %s\n", devfs_nodes[ new_device->inode ]->name );
+	//printf( "    Added new device %s\n", devfs_nodes[ new_device->inode ]->name );
 }
 
 file_node_t *devfs_find_node( file_node_t *node, char *name ){ DEBUG_HERE 
 	int i = 0, has_subdir = 0;
 	file_node_t *ret = 0;
-	char *sub_dir;
+	char *sub_dir = 0;
 
 	for ( i = 0; i < strlen( name ); i++ ){ DEBUG_HERE 
 		if ( name[i] == '/' ){ DEBUG_HERE 

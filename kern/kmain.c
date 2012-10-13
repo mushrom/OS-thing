@@ -53,34 +53,40 @@ void kmain( void* mbd, uint32_t initial_stack, unsigned int magic ){
 	kputs( "[\x19obsidian\x17 OS]\n" );
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 
-	if ( magic != 0x1BADB002 ){
+	if ( magic != 0x2BADB002 ){
 		kputs( "[\x14-\x17] Multiboot not found...\n" );
 	} else {
 		kputs( "[\x12+\x17] Multiboot found\n" );
 	}
 
 	init_tables(); 		kputs( "[\x12+\x17] initialised tables\n" );
-	init_paging(); 		printf( "[\x12+\x17] initialised paging\n" );
+	asm volatile ( "sti" );
 	init_timer(TIMER_FREQ);	printf( "[\x12+\x17] Initialised timer to %uhz\n", TIMER_FREQ );
-	init_heap( KHEAP_START, 0x10000, kernel_dir );	printf( "[\x12+\x17] initialised heap\n" );
+	init_paging(); 		printf( "[\x12+\x17] initialised paging\n" );
+	//init_heap( KHEAP_START, 0x10000, kernel_dir );	printf( "[\x12+\x17] initialised heap\n" );
 	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
 	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
 
 	init_driver_stuff();	kputs( "[\x12+\x17] initialised driver stuff\n" );
 	init_console();
-	init_keyboard(); 	printf( "[\x12+\x17] initialised keyboard\n" );
+	init_keyboard(); 	//printf( "[\x12+\x17] initialised keyboard\n" );
 	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
 				printf( "[\x12+\x17] initialised ide\n" );
+	init_syscalls(); 	printf( "[\x12+\x17] Initialised syscalls\n" );
 	init_shell();
 	//init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
-	//init_syscalls(); 	printf( "[\x12+\x17] Initialised syscalls\n" );
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 
 	asm volatile ( "sti" );
-	//syscall_kputs( "test\n" );
+
+	char *str = "[\x12+\x17] Syscalls + paging operational\n";
+	memcpy((void*)0xc0001000, str, strlen(str));
+	syscall_kputs((char *)0xc0001000 );
 
 	//test_thing();
+	//char *args[] = { "meh", "adev", 0 };
 	
+	//sh_list( 1, 0 );
 	kshell( 1, 0 );
 
 	//switch_to_user_mode();

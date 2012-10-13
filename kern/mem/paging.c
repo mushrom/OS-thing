@@ -6,9 +6,9 @@ extern unsigned long placement;
 unsigned long *page_stack, page_ptr = 0, npages = 0, mem_end = 0x1000000; /*16MB limit hardcoded for now*/
 page_dir_t *kernel_dir = 0, *current_dir = 0;
 
-void set_page_dir( void *dir ){
+void set_page_dir( page_dir_t *dir ){
 	unsigned long cr0;
-	asm volatile( "mov %0, %%cr3":: "r"(dir));
+	asm volatile( "mov %0, %%cr3":: "r"(dir->address));
 	asm volatile( "mov %%cr0, %0": "=r"(cr0));
 	asm volatile( "mov %0, %%cr0":: "r"(cr0 | 0x80000000));
 }
@@ -51,6 +51,7 @@ unsigned long *get_page( unsigned long address, unsigned char make, page_dir_t *
 		memset( dir->tables[low_index], 0, PAGE_SIZE );
 		dir->table_addr[ low_index ] = tmp | PAGE_WRITEABLE | PAGE_PRESENT;
 	} 
+	
 	return &dir->tables[ low_index ]->address[ high_index % 1024 ];
 
 	return 0;
@@ -62,6 +63,8 @@ void push_page( unsigned long address ){
 
 unsigned long pop_page( void ){
 	if ( page_ptr ){
+		//if ( page_stack[ page_ptr-1 ] == 0 )
+			//printf( "Got null page. 0_o\n" );
 		return page_stack[ --page_ptr ];
 	} else {
 		PANIC( "out of free pages" );
@@ -70,8 +73,9 @@ unsigned long pop_page( void ){
 }
 
 void init_paging( ){
-	page_dir_t   *kernel_dir= (void *)kmalloc_e( sizeof( page_dir_t ), 1, 0 );
 	unsigned long address	= 0, i;
+	page_dir_t   *kernel_dir= (void *)kmalloc_e( sizeof( page_dir_t ), 1, &address );
+		      kernel_dir->address = (void*)address;
 	npages			= mem_end / PAGE_SIZE;
 	page_stack 		= (void *)kmalloc_e( npages, 1, 0 );
 
@@ -82,12 +86,22 @@ void init_paging( ){
 	for ( i = 1; i < 1024; i++ ){
 		kernel_dir->tables[i] = 0;
 	}
+	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE; address += PAGE_SIZE ){ DEBUG_HERE
+		get_page( address, 1, kernel_dir );
+	}
 	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 50; address += 0x1000 ){
-		alloc_page( get_page( address, 1, kernel_dir ));
+		alloc_page(get_page( address, 1, kernel_dir ));
+	}
+	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE; address += PAGE_SIZE ){ DEBUG_HERE
+		alloc_page(get_page( address, 1, kernel_dir ));
 	}
 	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 50; address += 0x1000 ){
 		set_table_perms( PAGE_WRITEABLE | PAGE_PRESENT, address, kernel_dir );
 	}
+	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE; address += PAGE_SIZE ){ DEBUG_HERE
+		set_table_perms( PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, address, kernel_dir );
+	}
+	init_heap( KHEAP_START, KHEAP_SIZE, kernel_dir );	printf( "    initialised heap\n" );
 
 	printf( "    %d total pages, %d allocated for kernel (%d free, last at 0x%x)\n", 
 			npages, npages - page_ptr, page_ptr, address );

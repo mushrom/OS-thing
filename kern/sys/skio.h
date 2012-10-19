@@ -1,7 +1,7 @@
 #ifndef _kernel_skio_h
 #define _kernel_skio_h
 
-#define IN_BUF_SIZE 32
+#define IN_BUF_SIZE 64
 #define insl( port, buffer, count )\
 	asm volatile ( "cld; rep; insl" :: "D"(buffer), "d"(port), "c"(count))
 

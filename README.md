@@ -4,7 +4,8 @@ This is a small OS project, at the moment consisting of barebones kernel. It's i
 
 To build it, you'll need a C compiler, nasm, and a unix-like environment (for image generation.)
 to build:
-    make cross-cc #if you don't already have a cross compiler set up
-    make
-    make test
+
+     make cross-cc #if you don't already have a cross compiler set up
+     make
+     make test
 

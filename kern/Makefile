@@ -3,13 +3,12 @@ ARCH	   = ia32
 AS         = nasm
 CC         = gcc
 LD         = ld
-#CFLAGS     = -nostdlib -fno-builtin -nostartfiles -nodefaultlibs -m32 \
-		-Wall -DARCH=$(ARCH) -I$(shell pwd) -I$(shell pwd)/lib
-#CFLAGS     = -nostdlib -fno-builtin -m32 -Wall -DARCH=$(ARCH) -I$(shell pwd) -I$(shell pwd)/lib
-CFLAGS     = -nostdlib -fno-builtin -Wall -DARCH=$(ARCH) -I$(shell pwd) -I$(shell pwd)/lib
+OBJCOPY    = objcopy
+STRIP	   = strip
+CFLAGS     = -nostartfiles -nodefaultlibs -nostdlib -fno-builtin \
+		-Wall -DARCH=$(ARCH) -I$(shell pwd)
 CONFIG_C_FLAGS = 
 CFLAGS 	  += $(CONFIG_C_FLAGS)
-#LDFLAGS    = -T linker.ld -melf_i386_fbsd
 LDFLAGS    = -T linker.ld
 LINKFILES  = $(KNAME).bin 
 
@@ -17,7 +16,7 @@ KFILES	  += $(shell find arch/$(ARCH)/ sys drivers lib fs mem -name "*.[c,s]" )
 KFILES	  += $(shell ls *.c *.s )
 LINKFILES += $(shell echo $(KFILES) | sed "s/\.[c,h,s]/.o/g")
 
-all: kernel link
+all: kernel link extract-syms
 
 debug:
 	@echo "Kfiles: $(KFILES)"
@@ -51,10 +50,18 @@ link:
 	@echo "Kernel name: $(KNAME).bin"
 	@echo -e "[\033[0;34mdone\033[0;0m]"
 
+extract-syms:
+	@echo -e "[\033[0;34mExtracting debug symbols...\033[0;0m]"
+	@$(OBJCOPY) --only-keep-debug $(KNAME).bin $(KNAME).sym
+	@$(STRIP) --strip-debug --strip-unneeded $(KNAME).bin
+	@echo "symbol file: $(KNAME).sym"
+	@echo -e "[\033[0;34mdone\033[0;0m]"
+
 test:
 	qemu -kernel $(KNAME).bin
 
 clean:
 	-rm $(LINKFILES)
+	rm $(KNAME).sym
 
 .PHONY: all 

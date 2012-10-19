@@ -4,11 +4,15 @@
 
 extern void *end;
 unsigned long placement = (unsigned long)&end;
-heap_t *kheap;
+unsigned long fplacement = (unsigned long)KHEAP_START;
+heap_t *kheap = 0;
 unsigned int	block_size = sizeof( kmemnode_t );
 
 unsigned long kmalloc( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
-	return kmalloc_e( size, align, physical );
+	if ( kheap )
+		return kmalloc_f( size, align, physical );
+	else
+		return kmalloc_e( size, align, physical );
 }
 
 unsigned long kmalloc_e( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
@@ -30,7 +34,18 @@ unsigned long kmalloc_e( unsigned long size, unsigned int align, unsigned long *
 
 unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
 	/* Final malloc function, should only be used after paging is enabled. */
-	return 0xc0000000;
+	//return 0xc0000000;
+	int addr;
+	if ( align && ( fplacement & 0xfff )){
+		fplacement &= 0xfffff000;
+		fplacement += 0x1000;
+	}
+	if ( physical )
+		*physical = fplacement;
+
+	addr = fplacement;
+	fplacement += size;
+	return addr;
 }
 
 void init_heap( unsigned long start, unsigned long size, page_dir_t *dir ){ DEBUG_HERE
@@ -43,11 +58,13 @@ void init_heap( unsigned long start, unsigned long size, page_dir_t *dir ){ DEBU
 	//printf( "    block size: %d, 0x%x\n", block_size, get_page( start, 0, dir ));
 
 	for ( i = start; i < start + (block_size*4); i += block_size ){ DEBUG_HERE
-		memptr->next = memptr + block_size;
+		memptr->next = 1;
+		memptr->prev = 2;
+		memptr->size = 9001;
 		memptr->magics = KHEAP_MAGIC;
-		printf( "Alloced block 0x%x->0x%x, %x\n", memptr, memptr->next, memptr->magics );
-		printf( "    [ 0x%x->0x%x ]\n", &memptr, &memptr->next );
-		memptr = &memptr->next;
+		printf( "Alloced block 0x%x->0x%x, %x\n", memptr + block_size, memptr->next, memptr->magics );
+		printf( "    [ 0x%x->0x%x ]\n", &memptr, *memptr->next );
+		memptr = &*memptr->next;
 	}
 }
 

@@ -140,10 +140,10 @@ int ide_driver_read( file_node_t *node, void *buf, unsigned long size ){
 	unsigned int  i = 0, j = 0, l = 0, k = 0, device = node->dev_id;
 	int ret = 0;
 
-	printf( "[debug] reading %u sectors\n", sectors );
+	//printf( "[debug] reading %u sectors\n", sectors );
 
 	for ( i = 0; i < sectors && !ret; i++ ){
-		printf( "[debug] Got sector %d\n", i );
+		//printf( "[debug] Got sector %d\n", i );
 		ret = ide_read_sectors( device, 1, i, 0, (unsigned int)read_buf );
 		if ( !ret ){
 			for ( k = j, l = 0; j < k + 512 && j < size; j++, l++ ){
@@ -163,10 +163,10 @@ int ide_driver_write( file_node_t *node, void *buf, unsigned long size ){ DEBUG_
 	unsigned int  i = 0, j = 0, l = 0, k = 0, device = node->dev_id;
 	int ret = 0;
 
-	printf( "[debug] writing %u sectors\n", sectors );
+	//printf( "[debug] writing %u sectors\n", sectors );
 
 	for ( i = 0; i < sectors && !ret; i++ ){ DEBUG_HERE
-		memset( &write_buf, 0, 512 );
+		ide_driver_pread( node, write_buf, 512, i * 512 );
 		for ( l = 0, k = j; j < k + 512 && j < size; l++, j++ ){ DEBUG_HERE
 			write_buf[l] = in_buf[j];
 		 }
@@ -187,11 +187,15 @@ int ide_driver_pread( file_node_t *node, void *buf, unsigned long size, unsigned
 
 	printf( "[debug] reading %u sectors\n", sectors );
 
-	for ( i = soffset; i < sectors + soffset && !ret; i++ ){
+	for ( i = soffset; i < sectors + soffset + ( offset % 512 > 0 ) && !ret; i++ ){
 		printf( "[debug] Got sector %d\n", i );
 		ret = ide_read_sectors( device, 1, i, 0, (unsigned int)read_buf );
 		if ( !ret ){
-			for ( k = j, l = 0; j < k + 512 && j < size; j++, l++ ){
+			if ( i == soffset )
+				l = offset % 512;
+			else 
+				l = 0;
+			for ( k = j; j < k + 512 && ( !l || l % 512 ) && j < size; j++, l++ ){
 				in_buf[j] = read_buf[l];
 			}
 		} 
@@ -211,9 +215,14 @@ int ide_driver_pwrite( file_node_t *node, void *buf, unsigned long size, unsigne
 
 	printf( "[debug] writing %u sectors\n", sectors );
 
-	for ( i = soffset; i < sectors + soffset && !ret; i++ ){
-		memset( &write_buf, 0, 512 );
-		for ( l = 0, k = j; j < k + 512 && j < size; l++, j++ ){
+	for ( i = soffset; i < sectors + soffset + ( offset % 512 > 0 ) && !ret; i++ ){
+		printf( "[debug] Got sector %d\n", i );
+		ide_driver_pread( node, write_buf, 512, i * 512 );
+		if ( i == soffset )
+			l = offset % 512;
+		else
+			l = 0;
+		for ( k = j; j < k + 512 && ( !l || l % 512 ) && j < size; l++, j++ ){
 			write_buf[l] = in_buf[j];
 		}
 		ret = ide_write_sectors( device, 1, i, 0, (unsigned int)write_buf );
@@ -383,6 +392,7 @@ unsigned char ide_ata_access( 	unsigned char direction, unsigned char drive, uns
 	else
 		ide_write( channel, ATA_REG_HDDEVSEL, 0xe0 | (slavebit << 4) | head );
 
+
 	if ( lba_mode == 2 ){
 		ide_write( channel, ATA_REG_SECCOUNT1, 	0);
 		ide_write( channel, ATA_REG_LBA3,	lba_io[3]);
@@ -427,8 +437,10 @@ unsigned char ide_ata_access( 	unsigned char direction, unsigned char drive, uns
 				edi += ( words * 2 );
 			}
 		} else {
+			//printf( "[6.1] Got here...\n" );
 			for ( i = 0; i < numsects; i++ ){
 				ide_polling( channel, 0 );
+				printf( "" /*More magic*/ );
 				asm volatile( "pushw %ds" );
 				asm volatile( "mov %%ax, %%ds":: "a"(selector));
 				asm volatile( "rep outsw":: "c"(words), "d"(bus), "S"(edi));

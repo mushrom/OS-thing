@@ -1,5 +1,5 @@
-MAKE=gmake
-PREFIX=$(shell pwd )
+MAKE=make
+PREFIX=$(shell pwd)
 TARGET=i586-elf
 BINUTILS=binutils-2.22
 GCC=gcc-4.7.2
@@ -8,7 +8,7 @@ MPC=mpc-1.0.1
 MPFR=mpfr-3.1.1
 CHECKFILE=.cross_check
 
-CLEAN_DIRS=$(shell find . -type d -depth 1)
+CLEAN_DIRS=$(GCC) $(BINUTILS) $(GMP) $(MPC) $(MPFR)
 
 all: check download binutils gmp mpfr mpc gcc test
 
@@ -107,5 +107,6 @@ clean-archives:
 	rm -rf *.tar.*
 
 clean-all: clean-build clean-archives
+	rm -rf *
 	
 .PHONY: all

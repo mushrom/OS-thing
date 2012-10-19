@@ -21,6 +21,7 @@ int    sh_cd( int argc, char **argv );
 int  sh_atoi( int argc, char **argv );
 int sh_sleep( int argc, char **argv );
 int sh_debug( int argc, char **argv );
+int sh_alloc( int argc, char **argv );
 
 void init_shell( ){
 	register_shell_func( "ls", sh_list );
@@ -35,6 +36,7 @@ void init_shell( ){
 	register_shell_func( "atoi", sh_atoi );
 	register_shell_func( "sleep", sh_sleep );
 	register_shell_func( "shell", kshell );
+	register_shell_func( "alloc", sh_alloc );
 }
 
 void register_shell_func( char *name, shell_func_t function ){
@@ -112,15 +114,15 @@ int kshell( int argc, char **argv ){
 }
 
 int sh_test( int argc, char **argv ){
-	char *shell = "\xb0\x00\xcd\x50\xf4";
+	char sysc_test[] = 	"\x31\xc0" //xor eax, eax; leaves 0 in eax, which is syscall_cls
+				"\xcd\x50" //int 0x50
+				"\xc3";	   //ret
+	(*(void (*)())sysc_test)();
+
 	int i = 0;
 	for ( i = 0; i < argc; i++ ){
 		printf( "arg %d: %s\n", i, argv[i] );
 	}
-	void (*program)();
-	program = shell;
-	program();
-	
 	return 0;
 }
 
@@ -307,6 +309,20 @@ int sh_sleep( int argc, char **argv ){
 
 int sh_debug( int argc, char **argv ){
 	printf( "%s:%d\n", g_errfile, g_errline );
+	return 0;
+}
+
+int sh_alloc( int argc, char **argv ){
+	int i = 0, count = 3;
+	char *string, *data = "test data";
+	if ( argc > 1 )
+		count = atoi( argv[1] );
+
+	for ( i = 0; i < count; i++ ){
+		string = (char *)kmalloc(strlen( data ), 0, 0);
+		memcpy( string, data, strlen( data ));
+		printf( "0x%x:%s\n", string, string );
+	}
 	return 0;
 }
 

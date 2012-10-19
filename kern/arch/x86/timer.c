@@ -7,9 +7,9 @@ uint32_t mark = 0;
 uint32_t current_freq = 0;
 
 static void timer_call( registers_t regs ){
-	//printf( "Tick: %u\n", ++tick );
 	//asm volatile ( "sti" );
 	tick++;
+	//printf( "Tick: %u\n", tick );
 	//switch_task();
 }
 

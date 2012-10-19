@@ -89,13 +89,13 @@ void init_paging( ){
 	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE; address += PAGE_SIZE ){ DEBUG_HERE
 		get_page( address, 1, kernel_dir );
 	}
-	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 50; address += 0x1000 ){
+	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE; address += 0x1000 ){
 		alloc_page(get_page( address, 1, kernel_dir ));
 	}
 	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE; address += PAGE_SIZE ){ DEBUG_HERE
 		alloc_page(get_page( address, 1, kernel_dir ));
 	}
-	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 50; address += 0x1000 ){
+	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE; address += 0x1000 ){
 		set_table_perms( PAGE_WRITEABLE | PAGE_PRESENT, address, kernel_dir );
 	}
 	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE; address += PAGE_SIZE ){ DEBUG_HERE

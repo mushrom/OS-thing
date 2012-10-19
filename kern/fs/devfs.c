@@ -37,14 +37,14 @@ void init_devfs( void ){
 	/* A small testing device, prints out a-z when read */
 	file_node_t test;
 	memset( &test, 0, sizeof( file_node_t ));
-	memcpy( test.name, "abc0", 4 );
+	memcpy( test.name, "abc0", 5 );
 	test.type = FS_CHAR_D;
 	test.find_node		= devfs_find_node;
 	test.read		= meh_read;
 	devfs_register_device( test );
 
 	memset( &test, 0, sizeof( file_node_t ));
-	memcpy( test.name, "null", 4 );
+	memcpy( test.name, "null", 5 );
 	test.type = FS_CHAR_D;
 	test.find_node		= devfs_find_node;
 	test.read		= null_read;

@@ -1,12 +1,20 @@
 NAME=image
+KNAME=kernel
 MAKE=gmake
 EMULATOR=qemu
-EMU_FLAGS=-hdb vdrive.img -hda
-CC=$(shell pwd)/cross/bin/i586-elf-gcc
-LD=$(shell pwd)/cross/bin/i586-elf-ld
+EMU_FLAGS=-hdb vdrive.img -hda $(NAME).img -gdb tcp::9000
+CROSS=$(shell pwd)/cross
+
+CC=$(CROSS)/bin/i586-elf-gcc
+LD=$(CROSS)/bin/i586-elf-ld
+OBJCOPY=$(CROSS)/bin/i586-elf-objcopy
+STRIP=$(CROSS)/bin/i586-elf-strip
+#OBJCOPY=objcopy
+#STRIP=strip
 #CC=gcc
-#LD=ld
-CONFIG_C_FLAGS=
+#LD=ld 
+#CONFIG_C_FLAGS=
+CONFIG_C_FLAGS=-g
 
 all: check kernel image
 
@@ -26,26 +34,31 @@ check:
 	fi
 
 kernel:
-	@cd kern; $(MAKE) CONFIG_C_FLAGS="$(CONFIG_C_FLAGS)" CC=$(CC) LD=$(LD)
+	@cd kern; $(MAKE) KNAME=$(KNAME) CONFIG_C_FLAGS="$(CONFIG_C_FLAGS)" \
+			  CC=$(CC) LD=$(LD) SPLIT=$(SPLIT) OBJCOPY=$(OBJCOPY)
 
 image:
 	@echo -e "[\033[0;34mGenerating image...\033[0;0m]"
 	@dd if=/dev/zero of=boot/pad bs=1 count=750 2> /dev/null
-	@cat boot/stage1 boot/stage2 boot/pad kern/kernel.bin > $(NAME).img
-	@dd if=/dev/zero of=vdrive.img bs=1 count=8096 2> /dev/null
+	@kern=`wc -c < kern/kernel.bin`; pad_s=$$(( 512 - kern%512 ));\
+		dd if=/dev/zero of=boot/pad2 bs=1 count=$$pad_s 2> /dev/null
+	@cat boot/stage1 boot/stage2 boot/pad kern/kernel.bin boot/pad2 > $(NAME).img
+	@if [ ! -e vdrive.img ]; then \
+		dd if=/dev/zero of=vdrive.img bs=1 count=8096 2> /dev/null; \
+	fi
 	@s1=`wc -c < boot/stage1`;\
 		s2=`wc -c < boot/stage2`;\
 		pad=`wc -c < boot/pad`;\
 		kern=`wc -c < kern/kernel.bin`;\
 		buf1=$$(( s1/512 + s2/512 + pad/512 + 1 ));\
-		buf2=$$(( kern/512 ));\
-		echo -e "To boot:\n\t$(EMULATOR) $(EMU_FLAGS) $(NAME).img";\
+		buf2=$$(( kern/512 + 1));\
+		echo -e "To boot:\n\t$(EMULATOR) $(EMU_FLAGS)";\
 		echo -e "grub: \tkernel $$buf1+$$buf2";\
 		echo -e "grub: \tboot"
 	@echo -e "[\033[0;34mdone\033[0;0m]";
 
 test:
-	$(EMULATOR) $(EMU_FLAGS) $(NAME).img
+	$(EMULATOR) $(EMU_FLAGS)
 
 cross-cc:
 	@echo -e "[\033[0;34mMaking cross-compiler...\033[0;0m]"

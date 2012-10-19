@@ -7,7 +7,8 @@
 char *videoram = (char *)VIDEORAM;
 unsigned short int cur_x_pos = 0,
 		   cur_y_pos = 0,
-		   color = 0x0f;
+		   color = 0x0f,
+		   con_scroll_offset = 0;
 //console_driver.write = console_write;
 
 void cls( void ){
@@ -30,7 +31,7 @@ void move_cursor( ){
 void _kcheck_scroll( void ){
 	unsigned short int i;
 	if ( cur_y_pos > 24 ){
-		for ( i = 0; i < 24; i++ ){
+		for ( i = con_scroll_offset; i < 24; i++ ){
 			memcpy( videoram+(i*XSIZE*2), videoram+((i+1)*XSIZE*2), XSIZE*2 );
 		}
 		for ( ; cur_y_pos > 24; cur_y_pos-- );

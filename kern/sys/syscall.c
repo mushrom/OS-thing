@@ -6,14 +6,14 @@ static void syscall_handler( registers_t regs );
 
 #define NUM_SYSCALLS 3
 static void *syscalls[ NUM_SYSCALLS ] = {
+	&cls,
 	&kputchar,
-	&kputs,
-	&cls
+	&kputs
 };
 
 DEFN_SYSCALL0(cls, 0)
 DEFN_SYSCALL1(kputchar, 1, char)
-DEFN_SYSCALL1(kputs, 1, char *);
+DEFN_SYSCALL1(kputs, 2, char *);
 
 void init_syscalls(){
 	register_interrupt_handler( 0x50, &syscall_handler );

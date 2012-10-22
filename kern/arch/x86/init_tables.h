@@ -1,8 +1,8 @@
 #ifndef _kernel_arch_x86_init_tables_h
 #define _kernel_arch_x86_init_tables_h
 //#include <sys/console.h>
-#include <lib/stdint.h>
 #include <arch/x86/isr.h>
+#include <lib/stdint.h>
 
 struct gdt_entry {
 	uint16_t limit_low;

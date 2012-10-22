@@ -1,4 +1,4 @@
-MAKE=make
+MAKE=gmake
 PREFIX=$(shell pwd)
 TARGET=i586-elf
 BINUTILS=binutils-2.22
@@ -6,7 +6,7 @@ GCC=gcc-4.7.2
 GMP=gmp-5.0.5
 MPC=mpc-1.0.1
 MPFR=mpfr-3.1.1
-CHECKFILE=.cross_check
+CHECKFILE=.check-$(TARGET)
 
 CLEAN_DIRS=$(GCC) $(BINUTILS) $(GMP) $(MPC) $(MPFR)
 
@@ -85,7 +85,7 @@ gcc:
 	@echo Extracting...
 	@tar xf $(GCC).tar.bz2
 	@cd $(GCC); export PATH="$$PATH:$(PREFIX)";\
-	./configure --prefix=$(PREFIX) --target=$(TARGET) --disable-nls --enable-languages=c --without-headers --with-gmp=$(PREFIX) --with-mpc=$(PREFIX) --with-mpfr=$(PREFIX);\
+	./configure --prefix=$(PREFIX) --target=$(TARGET) --disable-nls --enable-languages=c --without-headers --with-gmp=$(PREFIX) --with-mpc=$(PREFIX) --with-mpfr=$(PREFIX) --enable-obsolete;\
 	$(MAKE); $(MAKE) install;
 
 test:

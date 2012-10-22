@@ -4,7 +4,7 @@
 #include <lib/stdint.h>
 #include <lib/stdarg.h>
 #include <lib/string.h>
-#include <drivers/console.h>
+#include <arch/arch.h>
 
 typedef unsigned long size_t;
 

@@ -1,6 +1,6 @@
 #ifndef _kernel_ide_c
 #define _kernel_ide_c
-#include <drivers/ide.h>
+#include "ide.h"
 /* This source is from the osdev wiki */
 
 typedef struct ide_channel_regs {

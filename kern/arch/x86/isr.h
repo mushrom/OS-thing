@@ -2,7 +2,6 @@
 #define _kernel_isr_h
 
 #include <lib/stdint.h>
-#include <lib/stdio.h>
 #include <lib/kmacros.h>
 
 #define IRQ0 32
@@ -34,5 +33,7 @@ void register_interrupt_handler( uint8_t, isr_t );
 void unregister_interrupt_handler( uint8_t );
 void dump_registers( registers_t regs );
 void gen_protect_fault( registers_t regs );
+
+#include <lib/stdio.h>
 
 #endif

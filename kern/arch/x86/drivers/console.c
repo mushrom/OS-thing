@@ -1,7 +1,7 @@
 #ifndef _kernel_console_c
 #define _kernel_console_c
 
-#include <drivers/console.h>
+#include "console.h"
 //static int console_write( int screen, void *buf, uint32_t size );
 
 char *videoram = (char *)VIDEORAM;

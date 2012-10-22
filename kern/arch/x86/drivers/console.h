@@ -1,7 +1,6 @@
 #ifndef _kernel_console_h
 #define _kernel_console_h
 #include <lib/string.h>
-#include <drivers/driver.h>
 #include <fs/devfs.h>
 
 #define XSIZE 80

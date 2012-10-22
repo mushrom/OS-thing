@@ -3,7 +3,6 @@
 
 //#include <sys/console.h>
 #include <sys/skio.h>
-#include <sys/syscall.h>
 
 #include <lib/kmacros.h>
 #include <lib/string.h>
@@ -11,8 +10,6 @@
 
 #include <arch/arch.h>
 
-#include <drivers/driver.h>
-#include <drivers/kb.h>
 #include <mem/alloc.h>
 
 #include <fs/fs.h>
@@ -20,6 +17,7 @@
 typedef int (*shell_func_t)( int argc, char **argv );
 typedef struct shell_command {
 	char *name;
+	char *help;
 	shell_func_t function;
 } shell_cmd_t;
 

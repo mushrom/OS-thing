@@ -7,10 +7,10 @@ unsigned int  input_buf_p = 0, input_buf_i = 0;
 unsigned int  got_input = 0, i;
 
 /* inports/outports */
+/*
 unsigned char inb( unsigned short port ){
         unsigned char ret;
-        asm volatile( "inb %1, %0"
-                : "=a"(ret) : "Nd"(port) );
+        asm volatile( "inb %1, %0" : "=a"(ret) : "Nd"(port) );
         return ret;
 }
 
@@ -21,6 +21,7 @@ void outb( unsigned short _port, unsigned char _data ){
 void outl( unsigned short _port, unsigned long _data ){
 	asm volatile( "outl %1, %0" : : "dN" (_port), "a" (_data));
 }	
+*/
 
 /* manipulate in/out buffers */
 unsigned char get_in_char( void ){
@@ -45,5 +46,6 @@ void put_in_char( unsigned char buf ){
 void pause( void ){
 	while ( !got_input );
 }
+
 
 #endif

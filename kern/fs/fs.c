@@ -127,8 +127,8 @@ int vfs_mkdir( file_node_t *node, char *name, int mode ){ DEBUG_HERE
 		fs_root[ vfs_i_count ].find_node 	= vfs_find_node;
 		fs_root[ vfs_i_count ].open		= vfs_open;
 
-		memcpy( node->dirp->dir[ index ]->name, name, strlen( name ));
-		memcpy( fs_root[ vfs_i_count ].name, name, strlen( name ));
+		memcpy( node->dirp->dir[ index ]->name, name, strlen( name ) + 1);
+		memcpy( fs_root[ vfs_i_count ].name, name, strlen( name ) + 1);
 
 		node->dirp->dir[ index ]->inode = vfs_i_count;
 		fs_root[ vfs_i_count ].inode = vfs_i_count;
@@ -155,8 +155,8 @@ int vfs_open( file_node_t *node, char *name, int mode ){ DEBUG_HERE
 		node->dirp->dir[ index ] = (void *)kmalloc( sizeof( struct dirent ), 0, 0 );
 		memset( node->dirp->dir[index], 0, sizeof( struct dirent ));
 		node->dirp->dir[ index ]->inode = vfs_i_count;
-		memcpy( node->dirp->dir[ index ]->name, name, strlen( name ));
-		memcpy( fs_root[ vfs_i_count ].name, name, strlen( name ));
+		memcpy( node->dirp->dir[ index ]->name, name, strlen( name ) + 1);
+		memcpy( fs_root[ vfs_i_count ].name, name, strlen( name ) + 1);
 
 		fs_root[ vfs_i_count ].inode 	= vfs_i_count;
 		fs_root[ vfs_i_count ].type 	= FS_FILE;

@@ -25,11 +25,7 @@ void init_devfs( void ){
 	devfs_root->opendir	= vfs_opendir;
 	devfs_root->closedir	= vfs_closedir;
 	devfs_root->find_node	= devfs_find_node;
-/*
-	temp = fs_find_node( fs_root, "test" );
-	temp->mount = devfs_root;
-	temp->find_node		= devfs_find_node;
-*/
+
 	temp = fs_find_node( fs_root, "dev" );
 	temp->mount = devfs_root;
 	temp->find_node		= devfs_find_node;

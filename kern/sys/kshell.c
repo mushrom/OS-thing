@@ -1,5 +1,7 @@
 #ifndef _kernel_shell_c
 #define _kernel_shell_c
+#ifndef NO_DEBUG
+
 #include <sys/kshell.h>
 
 #define STR_LIMIT 128 
@@ -14,7 +16,7 @@ int  sh_test( int argc, char **argv );
 int  sh_help( int argc, char **argv );
 int sh_clear( int argc, char **argv );
 int  sh_list( int argc, char **argv );
-int  sh_dump( int argc, char **argv );
+//int  sh_dump( int argc, char **argv );
 int sh_write( int argc, char **argv );
 int  sh_read( int argc, char **argv );
 int    sh_cd( int argc, char **argv );
@@ -22,6 +24,9 @@ int  sh_atoi( int argc, char **argv );
 int sh_sleep( int argc, char **argv );
 int sh_debug( int argc, char **argv );
 int sh_alloc( int argc, char **argv );
+int sh_reboot(int argc, char **argv );
+int   sh_mem( int argc, char **argv );
+int    sh_ps( int argc, char **argv );
 
 void init_shell( ){
 	register_shell_func( "ls", sh_list );
@@ -30,13 +35,16 @@ void init_shell( ){
 	register_shell_func( "read", sh_read );
 	register_shell_func( "clear", sh_clear );
 	register_shell_func( "debug", sh_debug );
-	register_shell_func( "dump", sh_dump );
+	//register_shell_func( "dump", sh_dump );
 	register_shell_func( "help", sh_help );
 	register_shell_func( "test", sh_test );
 	register_shell_func( "atoi", sh_atoi );
 	register_shell_func( "sleep", sh_sleep );
 	register_shell_func( "shell", kshell );
 	register_shell_func( "alloc", sh_alloc );
+	register_shell_func( "reboot", sh_reboot );
+	register_shell_func( "mem", sh_mem );
+	register_shell_func( "ps", sh_ps );
 }
 
 void register_shell_func( char *name, shell_func_t function ){
@@ -105,6 +113,8 @@ int kshell( int argc, char **argv ){
 				cmd_found = 1;
 			}
 		}
+		if ( strcmp( args[0], "exit" ) == 0 )
+			return 0;
 		if ( !cmd_found && strlen( args[0] )){
 			printf( "Unknown command: \"%s\"\n", args[0] );
 		}
@@ -128,10 +138,11 @@ int sh_test( int argc, char **argv ){
 
 int sh_help( int argc, char **argv ){
 	int i;
-	printf( "commands availible:\n" );
+	printf( "obsidian kernel built-in shell v0.2\n"
+		"commands availible:\n" );
 	for ( i = 0; i < cmd_count; i++ ){
 		printf( "\t%s", commands[i].name );
-		if ((i+1)%5 == 0 && i) printf( "\n" );
+		if ((i+1)%6 == 0 && i) printf( "\n" );
 	}
 	printf( "\n" );
 	return 0;
@@ -265,10 +276,12 @@ int  sh_read( int argc, char **argv ){
 	return 0;
 }
 
+/*
 int  sh_dump( int argc, char **argv ){
 	asm volatile( "int $0x30" );
 	return 0;
 }
+*/
 
 int    sh_cd( int argc, char **argv ){
 	file_node_t *fp;
@@ -319,11 +332,30 @@ int sh_alloc( int argc, char **argv ){
 		count = atoi( argv[1] );
 
 	for ( i = 0; i < count; i++ ){
-		string = (char *)kmalloc(strlen( data ), 0, 0);
-		memcpy( string, data, strlen( data ));
-		printf( "0x%x:%s\n", string, string );
+		unsigned long phys;
+		string = (char *)kmalloc(strlen( data ), 0, &phys );
+		memcpy( string, data, strlen( data ) + 1);
+		printf( "0x%x:0x%x:%s\n", string, phys, string );
+		kfree( string );
 	}
 	return 0;
 }
 
+int sh_reboot( int argc, char **argv ){
+	reboot();
+	return 0;
+}
+
+int sh_mem( int argc, char **argv ){
+	printf( "Used: %d (0x%x) bytes (%dkb)\n", get_memused(), get_memused(), get_memused() / 1024 );
+	return 0;
+}
+
+int sh_ps( int argc, char **argv ){
+	printf( "Calling pid: %d\n", getpid());
+	dump_pids();
+	return 0;
+}
+
+#endif
 #endif

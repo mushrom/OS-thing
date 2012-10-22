@@ -1,6 +1,6 @@
 boot: floppy
-floppya: 1_44="image.img", status=inserted
-ata0-master: type=disk, path=image.img
-ata1-master: type=disk, path=vdrive.img
+floppya: 1_44="image.hdd", status=inserted
+ata0-master: type=disk, path=image.hdd
+ata1-master: type=disk, path=vdrive.hdd
 #clock: sync=realtime
 #cpu: ips=1000000

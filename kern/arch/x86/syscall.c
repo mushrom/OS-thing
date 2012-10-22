@@ -1,6 +1,6 @@
 #ifndef _kernel_syscall_c
 #define _kernel_syscall_c
-#include <sys/syscall.h>
+#include <arch/x86/syscall.h>
 
 static void syscall_handler( registers_t regs );
 

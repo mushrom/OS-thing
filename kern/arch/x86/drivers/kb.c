@@ -1,6 +1,6 @@
 #ifndef _kernel_keyboard_c
 #define _kernel_keyboard_c
-#include <drivers/kb.h>
+#include "kb.h"
 
 #define KB_SH 1 /* S = shift */
 
@@ -83,7 +83,6 @@ void unload_keyboard( void ){
 }
 
 void init_keyboard( void ){
-
 	file_node_t kb_driver;
 	memset( &kb_driver, 0, sizeof( file_node_t ));
 	memcpy( kb_driver.name, "kb0", 4 );

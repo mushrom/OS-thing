@@ -4,9 +4,10 @@
 
 extern void *end;
 unsigned long placement = (unsigned long)&end;
-unsigned long fplacement = (unsigned long)KHEAP_START;
-heap_t *kheap = 0;
+unsigned long fplacement = (unsigned long)KHEAP_START; heap_t *kheap = 0;
 unsigned int	block_size = sizeof( kmemnode_t );
+extern page_dir_t *current_dir, *kernel_dir;
+unsigned long memused = 0;
 
 unsigned long kmalloc( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
 	if ( kheap )
@@ -34,38 +35,92 @@ unsigned long kmalloc_e( unsigned long size, unsigned int align, unsigned long *
 
 unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
 	/* Final malloc function, should only be used after paging is enabled. */
-	//return 0xc0000000;
 	int addr;
 	if ( align && ( fplacement & 0xfff )){
 		fplacement &= 0xfffff000;
 		fplacement += 0x1000;
 	}
 	if ( physical )
-		*physical = fplacement;
+		*physical = get_page( fplacement, 0, kernel_dir );
 
 	addr = fplacement;
 	fplacement += size;
 	return addr;
+	/*
+	unsigned int found_free = 0, i = 0;
+	kmemnode_t *memptr = kheap->memptr;
+	kmemnode_t *memmove = memptr;
+	kmemnode_t *ret;
+	memptr = kheap->memroot;
+	while ( !found_free ){
+		if ( memptr->size == 0 ){
+			memmove = memptr;
+			for ( i = 0; i < size; ){
+				if ( memmove->next->size == 0 ){
+					i += block_size;
+					memmove = memmove->next;
+				} else {
+					i = 0;
+					break;
+				}
+			}
+			if ( i ){
+				ret = memptr->next;
+				memptr->next = memmove->next;
+				//memptr->next = memmove;
+				memptr->next->prev = memptr;
+				memptr->size = i;
+				found_free = 1;
+				break;
+			}
+		} else {
+			memptr = memptr->next;
+		}
+	}
+	memused += i + block_size;
+	return (unsigned long)ret;
+	*/
 }
 
-void init_heap( unsigned long start, unsigned long size, page_dir_t *dir ){ DEBUG_HERE
-	unsigned long i;
-	kheap = (void *)kmalloc( sizeof( heap_t ), 0, 0 );
-	kheap->memmove = kheap->memptr = kheap->memroot = (void *)start;
-	kmemnode_t *memptr = kheap->memptr;
+void kfree( void *ptr ){
+	kmemnode_t *memptr  = ptr;
+	kmemnode_t *memmove = ptr;
+	printf( "%s: ", memmove );
 
-	i = start;
-	//printf( "    block size: %d, 0x%x\n", block_size, get_page( start, 0, dir ));
+	memmove = memptr - block_size;
+	if ( memmove->magics == KHEAP_MAGIC && memmove->size != 0 )
+		printf( "Can free block %d, magic: 0x%x, size: 0x%x bytes: %s\n", 
+			memmove->next - memmove, memmove->magics, memmove->size, (char *)memmove + block_size );
+	else 
+		printf( "Corrupted block at 0x%x->0x%x! (magic: 0x%x, size 0x%x)\n", 
+			memmove, memmove->next, memmove->magics, memmove->size );
+}
 
-	for ( i = start; i < start + (block_size*4); i += block_size ){ DEBUG_HERE
-		memptr->next = 1;
-		memptr->prev = 2;
-		memptr->size = 9001;
+unsigned long get_memused( void ){
+	return memused;
+}
+
+struct heap *init_heap( unsigned long start, unsigned long size, page_dir_t *dir ){ DEBUG_HERE
+	unsigned long block_c = 0, i = 0;
+	heap_t *heap = (void *)kmalloc( sizeof( heap_t ), 0, 0 );
+	heap->memmove = heap->memptr = heap->memroot = (void *)start;
+	kmemnode_t *memptr = heap->memptr;
+
+	for ( memptr = (void *)start; (unsigned long)memptr < start + size; block_c++ ){ DEBUG_HERE
+	//for ( i = start; i < start + size; i += block_size, block_c++ ){ DEBUG_HERE
+		/*memptr = i;
+ 		memptr->next = i + block_size;
+		memptr->prev = i - block_size;
+		*/
+ 		memptr->next = memptr + block_size;
+		memptr->prev = memptr - block_size;
+		memptr->size = 0;
 		memptr->magics = KHEAP_MAGIC;
-		printf( "Alloced block 0x%x->0x%x, %x\n", memptr + block_size, memptr->next, memptr->magics );
-		printf( "    [ 0x%x->0x%x ]\n", &memptr, *memptr->next );
-		memptr = &*memptr->next;
+		//printf( "Alloced block %d, 0x%x->0x%x, %x\n", memptr->next-memptr, memptr, memptr->next, memptr->magics );
+		memptr = memptr->next;
 	}
+	printf( "    initialised heap, 0x%x, block size: %d bytes, %d blocks\n", heap->memroot, block_size, block_c );
+	return (struct heap *)heap;
 }
 
 #endif

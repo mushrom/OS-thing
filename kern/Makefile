@@ -1,5 +1,6 @@
 KNAME	   = kernel
-ARCH	   = ia32
+MAKE	   = gmake
+ARCH	   = i586
 AS         = nasm
 CC         = gcc
 LD         = ld
@@ -9,11 +10,12 @@ CFLAGS     = -nostartfiles -nodefaultlibs -nostdlib -fno-builtin \
 		-Wall -DARCH=$(ARCH) -I$(shell pwd)
 CONFIG_C_FLAGS = 
 CFLAGS 	  += $(CONFIG_C_FLAGS)
-LDFLAGS    = -T linker.ld
+LDFLAGS    = -T arch/$(ARCH)/linker.ld
 LINKFILES  = $(KNAME).bin 
 
-KFILES	  += $(shell find arch/$(ARCH)/ sys drivers lib fs mem -name "*.[c,s]" ) 
-KFILES	  += $(shell ls *.c *.s )
+#KFILES	  += $(shell find arch/$(ARCH)/ -name "*.[c,s]" ) 
+KFILES	  += $(shell find arch/$(ARCH)/ sys lib fs mem -name "*.[c,s]" ) 
+#KFILES	  += $(shell ls *.c *.s )
 LINKFILES += $(shell echo $(KFILES) | sed "s/\.[c,h,s]/.o/g")
 
 all: kernel link extract-syms
@@ -23,6 +25,31 @@ debug:
 	@echo "Linkfiles: $(LINKFILES)"
 
 kernel:
+	$(MAKE) kernel-$(ARCH)
+
+kernel-arm:
+	@echo -e "[\033[0;34mCompiling kernel...\033[0;0m]"
+	@for thing in $(KFILES); do \
+		OUTFILE=`echo $$thing | sed "s/\.[c,h,s]/.o/"`; \
+		EXT=`echo $$thing | tail -c3`; \
+		RET=0; \
+		echo -e "Compiling $$thing...\r\c"; \
+		if [ $$EXT = .c ]; then \
+			$(CC) $(CFLAGS) -c $$thing -o $$OUTFILE; \
+			RET=$$?; \
+		elif [ $$EXT = .s ]; then \
+			$(AS) -o $$OUTFILE $$thing; \
+			RET=$$?; \
+		fi; \
+		if [ $$RET -gt 0 ]; then \
+			echo -e "[\033[0;31merror\033[0;0m] $$thing -> $$OUTFILE"; \
+		else \
+			echo -e "[\033[0;32mdone\033[0;0m] $$thing -> $$OUTFILE"; \
+		fi; \
+	done
+	@echo -e "[\033[0;34mdone\033[0;0m]"
+
+kernel-i586:
 	@echo -e "[\033[0;34mCompiling kernel...\033[0;0m]"
 	@for thing in $(KFILES); do \
 		OUTFILE=`echo $$thing | sed "s/\.[c,h,s]/.o/"`; \
@@ -62,6 +89,6 @@ test:
 
 clean:
 	-rm $(LINKFILES)
-	rm $(KNAME).sym
+	-rm *.sym *.bin
 
 .PHONY: all 

@@ -3,7 +3,7 @@ ARCH=i586
 TARGET=$(ARCH)-elf
 MAKE=gmake
 EMULATOR=qemu
-EMU_FLAGS=-hdb vdrive.hdd -hda $(NAME).hdd -s 
+EMU_FLAGS=-hda vdrive.hdd -hdb $(NAME).hdd -s 
 CROSS=$(shell pwd)/cross
 
 KNAME=obsidian-$(ARCH)
@@ -48,9 +48,7 @@ image:
 	@kern=`wc -c < kern/$(KNAME).bin`; pad_s=$$(( 512 - kern%512 ));\
 		dd if=/dev/zero of=boot/pad2 bs=1 count=$$pad_s 2> /dev/null
 	@cat boot/stage1 boot/stage2 boot/pad kern/$(KNAME).bin boot/pad2 > $(NAME).hdd
-	@if [ ! -e vdrive.hdd ]; then \
-		dd if=/dev/zero of=vdrive.hdd bs=1 count=8192 2> /dev/null; \
-	fi
+	@sh mk_image.sh
 	@s1=`wc -c < boot/stage1`;\
 		s2=`wc -c < boot/stage2`;\
 		pad=`wc -c < boot/pad`;\
@@ -71,7 +69,6 @@ cross-cc:
 	@echo -e "[\033[0;34mdone\033[0;0m]"
 
 clean:
-	-rm *.hdd
 	@cd kern; $(MAKE) clean
 
 .PHONY: all

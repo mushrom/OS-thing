@@ -34,7 +34,7 @@ void page_fault_handler( registers_t regs ){
 }
 
 void alloc_page( unsigned long *address ){
-	*address = pop_page() | PAGE_WRITEABLE | PAGE_PRESENT;
+	*address = pop_page() | PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT;
 	//printf( "Allocated 0x%x\n", address );
 }
 
@@ -54,7 +54,7 @@ unsigned long *get_page( unsigned long address, unsigned char make, page_dir_t *
 		unsigned long tmp;
 		dir->tables[ low_index ] = (void *)kmalloc( sizeof( page_table_t ), 1, &tmp );
 		memset( dir->tables[low_index], 0, PAGE_SIZE );
-		dir->table_addr[ low_index ] = tmp | PAGE_WRITEABLE | PAGE_PRESENT;
+		dir->table_addr[ low_index ] = tmp | PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT;
 	} 
 	
 	return &dir->tables[ low_index ]->address[ high_index % 1024 ];
@@ -96,7 +96,7 @@ void init_paging( ){
 		alloc_page(get_page( address, 1, kernel_dir ));
 	}
 	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 10; address += 0x1000 ){
-		set_table_perms( PAGE_WRITEABLE | PAGE_PRESENT, address, kernel_dir );
+		set_table_perms( PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, address, kernel_dir );
 	}
 	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE + PAGE_SIZE; address += PAGE_SIZE ){ DEBUG_HERE
 		alloc_page(get_page( address, 1, kernel_dir ));

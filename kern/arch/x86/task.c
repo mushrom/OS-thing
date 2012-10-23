@@ -17,6 +17,7 @@ void init_tasking( ){
 	current_task->id = next_pid++;
 	current_task->esp = current_task->ebp = 0;
 	current_task->eip = 0;
+	current_task->time = 0;
 	current_task->dir = current_dir;
 	current_task->next = 0;
 	current_task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 );
@@ -31,6 +32,7 @@ void switch_task(){
 
 	//printf( "[1]"  );
 	unsigned long esp = 0, ebp = 0, eip = 0;
+	task_t *temp = (task_t *)current_task;
 	asm volatile( "mov %%esp, %0" : "=r"(esp));
 	asm volatile( "mov %%ebp, %0" : "=r"(ebp));
 	eip = read_eip();
@@ -44,8 +46,20 @@ void switch_task(){
 	current_task->esp = esp;
 	current_task->ebp = ebp;
 
-	current_task = current_task->next;
-	if ( !current_task ) current_task = task_queue;
+	temp = current_task->next;
+	if ( !temp ) 
+		temp = (task_t *)task_queue;
+
+	while( temp->sleep ){
+		if ( temp->sleep )
+			temp->sleep--;
+		temp = temp->next;
+		if ( !temp )
+			temp = (task_t *)task_queue;
+	}
+	current_task = temp;
+	current_task->time++;
+	current_task->status = S_RUNNING;
 
 	eip = current_task->eip;
 	esp = current_task->esp;
@@ -67,7 +81,7 @@ void switch_task(){
 		jmp *%%ecx" :: "r"(eip), "r"(esp), "r"(ebp), "r"(current_dir->address ));
 }
 
-void create_thread( void (*function)()){
+int create_thread( void (*function)()){
 	asm volatile( "cli" );
 
 	//unsigned long eip = 0;
@@ -75,22 +89,29 @@ void create_thread( void (*function)()){
 		*temp	= (task_t *)task_queue;
 
 	task_t *new_task = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
-	new_task->id = next_pid++;
 	new_task->esp = new_task->ebp = new_task->eip = 0;
-	new_task->dir = current_dir;
+
+	new_task->id = next_pid++;
 	new_task->next = 0;
-	new_task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 );
 	new_task->parent = parent;
+	new_task->sleep = 0;
+	new_task->time  = 0;
+	new_task->dir = current_dir;
+	new_task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 );
 	new_task->eip = (unsigned long)function;
 	new_task->esp = new_task->stack;
 	new_task->ebp = current_task->ebp;
 
 	temp = (task_t *)task_queue;
-	while ( temp->next )
+	while ( temp->next ){
+		parent = temp;
 		temp = temp->next;
+	}
 	temp->next = new_task;
+	temp->parent = parent;
 
 	asm volatile( "sti" );
+	return new_task->id;
 }
 	
 void exit_thread( ){
@@ -105,6 +126,78 @@ void exit_thread( ){
 	printf( "pid %d exited\n", temp->id );
 	switch_task();
 	asm volatile( "sti" );
+}
+
+int kill_thread( unsigned long pid ){
+	asm volatile( "cli" );
+	task_t *temp = get_pid_task( pid );
+
+	if ( !temp ){
+		asm volatile( "sti" );
+		return 1;
+	}
+	temp->next->parent = temp->parent;
+	temp->parent->next = temp->next;
+
+	asm volatile( "sti" );
+	return 0;
+}
+
+void sleep_thread( unsigned long time ){
+	asm volatile( "cli" );
+
+	current_task->sleep = time;
+	current_task->status = S_SLEEPING;
+	//switch_task();
+
+	asm volatile( "sti" );
+}
+
+void get_msg( ipc_msg_t *buf ){
+	asm volatile( "cli" );
+	task_t *temp = (task_t *)current_task;
+	asm volatile( "sti" );
+	while ( !temp->msg_buf ){
+		temp->status = S_LISTENING;
+		//switch_task();
+	}
+	memcpy( buf, temp->msg_buf, sizeof( ipc_msg_t ));
+	temp->msg_buf = 0;
+}
+
+int send_msg( unsigned long pid, ipc_msg_t *msg ){
+	asm volatile( "cli" );
+	task_t *temp = get_pid_task( pid );
+	if ( !temp ){
+		asm volatile( "sti" );
+		return 1;
+	}
+
+	if ( temp->status != S_LISTENING ){
+		asm volatile( "sti" );
+		return 2;
+	}
+
+	/*
+	while ( temp->status != S_LISTENING ){
+		current_task->status = S_SENDING;
+		switch_task();
+	}
+	*/
+
+	temp->msg_buf = msg;
+	asm volatile( "sti" );
+	return 0;
+}
+
+task_t *get_pid_task( unsigned long pid ){
+	task_t *temp = (task_t *)task_queue;
+	while ( temp ){
+		if ( temp->id == pid )
+			return temp;
+		temp = temp->next;
+	}
+	return 0;
 }
 
 void move_stack( void *new_stack_start, unsigned long size ){
@@ -137,11 +230,57 @@ int getpid(){
 
 void dump_pids( void ){
 	task_t *temp = (task_t *)task_queue;
+	char *buf;
+	printf( "pid:\tstate:\t\ttime:\n" );
 	while ( temp ){
-		printf( "pid: %d, state: %s\n", temp->id, (temp->sleep)?"sleeping":"running" );
+		printf( "%d ", temp->id );
+		switch ( temp->status ){
+			case S_RUNNING:
+				buf = "running";
+				break;
+			case S_SLEEPING:
+				buf = "sleeping";
+				break;
+			case S_LISTENING:
+				buf = "listening";
+				break;
+			case S_SENDING:
+				buf = "sending";
+				break;
+			default:
+				buf = "unknown";
+				break;
+		}
+		printf( "\t%s ", buf );
+		printf( "\t%d\n", temp->time );
 		temp = temp->next;
 	}
 	temp = (task_t *)task_queue;
+}
+
+void switch_to_usermode( void ){
+	set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
+
+	asm volatile( "		\
+		cli;		\
+		mov $0x23, %ax;	\
+		mov %ax, %ds;	\
+		mov %ax, %es;	\
+		mov %ax, %fs;	\
+		mov %ax, %gs;	\
+				\
+		mov %esp, %eax;	\
+		pushl $0x23;	\
+		pushl %eax;	\
+		pushf;		\
+		popl %eax;	\
+		or $0x200, %eax; \
+		pushl %eax;	\
+		pushl $0x1b;	\
+		push $1f;	\
+		iret;		\
+		1:		\
+	" );
 }
 
 #endif

@@ -13,6 +13,7 @@
 #include <mem/alloc.h>
 
 #include <fs/fs.h>
+#include <kern/ipc.h>
 
 typedef int (*shell_func_t)( int argc, char **argv );
 typedef struct shell_command {

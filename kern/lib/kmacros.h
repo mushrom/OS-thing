@@ -10,7 +10,8 @@ extern unsigned int g_errline;
 		   }
 #else
 #define PANIC( a ) { printf( "Great, you broke it. Sit here and think about what you did."\
-				"\n\t%s\n\t%s:%d\n", a, g_errfile, g_errline );\
+				"\n\t%s"\
+				"\n\t%s:%d\n", a, g_errfile, g_errline );\
 				asm volatile( "hlt" );\
 		   }
 #endif

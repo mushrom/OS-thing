@@ -1,4 +1,4 @@
-/* =====================================================*\
+/*======================================================*\
  * Mah kernel, v0x00000001
  * Simple machine
  * Props to wiki.osdev.org. ^_^
@@ -23,6 +23,7 @@
 #include <arch/arch.h>
 #include <arch/x86/syscall.h>
 #include <arch/x86/task.h>
+#include <kern/ipc.h>
 
 #include <sys/kshell.h>
 #include <lib/kmacros.h>
@@ -39,15 +40,26 @@ char *g_errfile = "Debugging disabled";
 #endif
 
 void test( ){
-	//syscall_kputs( "\x12 a \x17" );
+	int i = 1;
+	while ( 1 ){
+		sleep_thread( 500 );
+		switch_task();
+	}
 	exit_thread();
 }
 
 void meh( ){
+	ipc_msg_t msg;
 	while ( 1 ){
 		//kputchar( 'b' );
-		//syscall_kputs( "\x13 b \x17" );
+		//printf( "pid \x18%d\x17 sleeping\n", getpid());
+		//sleep_thread( 10 );
+		get_msg( &msg );
+		printf( "pid %d: got message 0x%x from pid %d, woot\n", getpid(), msg.msg_type, msg.sender );
+		if ( msg.msg_type == 123 )
+			exit_thread();
 	}
+	exit_thread();
 }
 
 /* Main kernel code */
@@ -67,11 +79,11 @@ void kmain( uint32_t initial_stack, unsigned int magic ){
 		kputs( "[\x12+\x17] Multiboot found\n" );
 	}
 
-	//asm volatile( "sti" );
 	init_tables(); 		kputs( "[\x12+\x17] initialised tables\n" );
 	init_paging(); 		printf( "[\x12+\x17] initialised paging\n" );
 	init_timer(TIMER_FREQ);	printf( "[\x12+\x17] Initialised timer to %uhz\n", TIMER_FREQ );
 	asm volatile ( "sti" );
+	init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
 	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
 	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
 
@@ -81,20 +93,16 @@ void kmain( uint32_t initial_stack, unsigned int magic ){
 				printf( "[\x12+\x17] initialised ide\n" );
 	init_syscalls(); 	syscall_kputs( "[\x12+\x17] Initialised syscalls\n" );
 	init_shell();
-	init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 	con_scroll_offset = 0;
-
-
-	//test_thing();
-	//char *args[] = { "meh", "adev", 0 };
 	
-	//sh_list( 1, 0 );
-	create_thread( &test );
-	for ( i = 0; i < 5; i++ )
+	//switch_to_usermode();
+	//syscall_kputs( "Woot, it works. ^_^\n" );
+
+	for ( i = 0; i < 3; i++ )
+		create_thread( &test );
+	for ( i = 0; i < 3; i++ )
 		create_thread( &meh );
 	kshell( 1, 0 );
-	//reboot();
-
-	//switch_to_user_mode();
+	reboot();
 }

@@ -27,12 +27,16 @@ int sh_alloc( int argc, char **argv );
 int sh_reboot(int argc, char **argv );
 int   sh_mem( int argc, char **argv );
 int    sh_ps( int argc, char **argv );
+int   sh_msg( int argc, char **argv );
+int  sh_kill( int argc, char **argv );
+int sh_mkdir( int argc, char **argv );
 
 void init_shell( ){
 	register_shell_func( "ls", sh_list );
 	register_shell_func( "cd", sh_cd );
 	register_shell_func( "write", sh_write );
 	register_shell_func( "read", sh_read );
+	register_shell_func( "mkdir", sh_mkdir );
 	register_shell_func( "clear", sh_clear );
 	register_shell_func( "debug", sh_debug );
 	//register_shell_func( "dump", sh_dump );
@@ -45,6 +49,8 @@ void init_shell( ){
 	register_shell_func( "reboot", sh_reboot );
 	register_shell_func( "mem", sh_mem );
 	register_shell_func( "ps", sh_ps );
+	register_shell_func( "msg", sh_msg );
+	register_shell_func( "kill", sh_kill );
 }
 
 void register_shell_func( char *name, shell_func_t function ){
@@ -283,6 +289,21 @@ int  sh_dump( int argc, char **argv ){
 }
 */
 
+int sh_mkdir( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+	file_node_t *fp = fs_cwd;
+
+	fp = fs_find_node( fs_cwd, argv[1] );
+	if ( fp ) {
+		printf( "Directory already exists\n" );
+		return -1;
+	}
+	char ret = fs_mkdir( fs_cwd, argv[1], 0777 );
+	if ( ret )
+		printf( "Could not make directory.\n" );
+	return ret;
+}
+
 int    sh_cd( int argc, char **argv ){
 	file_node_t *fp;
 	if ( argc > 1 ){
@@ -356,6 +377,27 @@ int sh_ps( int argc, char **argv ){
 	dump_pids();
 	return 0;
 }
+int   sh_msg( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+	ipc_msg_t *buf = kmalloc( sizeof( ipc_msg_t ), 0, 0);
+	buf->msg_type = 2;
+	buf->sender = getpid();
+	if ( argc > 2 ) buf->msg_type = atoi( argv[2] );
 
+	char res = send_msg( atoi(argv[1]), buf );
+	if ( res ){
+		printf( "Could not send message: %s\n", (res==1)?"pid doesn't exist":"pid is not listening" );
+	} else {
+		printf( "Sent message\n" );
+	}
+	return 0;
+}
+int  sh_kill( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+
+	char ret = kill_thread( atoi( argv[1] ));
+	if ( ret )
+		printf( "Could not kill pid\n" );
+}
 #endif
 #endif

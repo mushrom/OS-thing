@@ -108,7 +108,8 @@ struct heap *init_heap( unsigned long start, unsigned long size, page_dir_t *dir
 
 	for ( memptr = (void *)start; (unsigned long)memptr < start + size; block_c++ ){ DEBUG_HERE
 	//for ( i = start; i < start + size; i += block_size, block_c++ ){ DEBUG_HERE
-		/*memptr = i;
+		/*
+		memptr = i;
  		memptr->next = i + block_size;
 		memptr->prev = i - block_size;
 		*/

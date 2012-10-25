@@ -39,6 +39,24 @@ char *g_errfile = "unknown";
 char *g_errfile = "Debugging disabled";
 #endif
 
+void main_daemon( ){
+	ipc_msg_t msg;
+	int ret;
+	while ( 1 ){
+		ret = get_msg( &msg, MSG_BLOCK );
+		if ( ret == 0 ){
+			switch ( msg.msg_type ){
+				case MSG_EXIT:
+					reboot();
+					break;
+				case MSG_STATUS:
+					printf( "Main daemon, how can I help you?\n" );
+					break;
+			}
+		}
+	}
+}
+
 void test( ){
 	int i = 1;
 	while ( 1 ){
@@ -50,14 +68,20 @@ void test( ){
 
 void meh( ){
 	ipc_msg_t msg;
+	int ret;
 	while ( 1 ){
 		//kputchar( 'b' );
 		//printf( "pid \x18%d\x17 sleeping\n", getpid());
 		//sleep_thread( 10 );
-		get_msg( &msg );
-		printf( "pid %d: got message 0x%x from pid %d, woot\n", getpid(), msg.msg_type, msg.sender );
-		if ( msg.msg_type == 123 )
-			exit_thread();
+		ret = get_msg( &msg, MSG_NO_BLOCK );
+		if ( ret == 0 ){
+			printf( "pid %d: got message 0x%x (%s) from pid %d\n",
+				 getpid(), msg.msg_type, msg_lookup( msg.msg_type ), msg.sender );
+			if ( msg.msg_type == 123 )
+				exit_thread();
+		} else {
+			sleep_thread( 1000 );
+		}
 	}
 	exit_thread();
 }
@@ -83,7 +107,6 @@ void kmain( uint32_t initial_stack, unsigned int magic ){
 	init_paging(); 		printf( "[\x12+\x17] initialised paging\n" );
 	init_timer(TIMER_FREQ);	printf( "[\x12+\x17] Initialised timer to %uhz\n", TIMER_FREQ );
 	asm volatile ( "sti" );
-	init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
 	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
 	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
 
@@ -92,6 +115,7 @@ void kmain( uint32_t initial_stack, unsigned int magic ){
 	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
 				printf( "[\x12+\x17] initialised ide\n" );
 	init_syscalls(); 	syscall_kputs( "[\x12+\x17] Initialised syscalls\n" );
+	init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
 	init_shell();
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 	con_scroll_offset = 0;
@@ -103,6 +127,9 @@ void kmain( uint32_t initial_stack, unsigned int magic ){
 		create_thread( &test );
 	for ( i = 0; i < 3; i++ )
 		create_thread( &meh );
-	kshell( 1, 0 );
+
+	create_thread( &kshell );
+	create_thread( &main_daemon );
+	sleep_thread( 0xffffffff );
 	reboot();
 }

@@ -22,7 +22,7 @@ typedef struct shell_command {
 	shell_func_t function;
 } shell_cmd_t;
 
-int  kshell( int, char ** );
+void kshell( );
 void register_shell_func( char *name, shell_func_t function );
 void init_shell( );
 

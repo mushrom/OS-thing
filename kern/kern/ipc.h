@@ -1,10 +1,15 @@
 #ifndef _kernel_ipc_h
 #define _kernel_ipc_h
 enum {
-	MSG_DUMMY,
+	MSG_STATUS,
+	MSG_NO_BLOCK,
+	MSG_BLOCK,
 	MSG_STRING,
-	MSG_MEH
+	MSG_EXIT,
+	MSG_NULL
 };
+
+char *msg_lookup( unsigned int );
 
 typedef struct ipc_msg {
 	unsigned long msg_type;

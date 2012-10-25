@@ -22,8 +22,7 @@ typedef struct ide_device {
 	unsigned char  model[41];
 } ide_device_t;
 	
-ide_channel_regs_t 	channels[2];
-ide_device_t		ide_devices[4];
+ide_channel_regs_t 	channels[2]; ide_device_t		ide_devices[4];
 unsigned char ide_buf[2048] = {0};
 unsigned char ide_irq_invoked = 0;
 unsigned char atapi_packet[12] = { 0xa8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -106,6 +105,23 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 	}
 	register_interrupt_handler( IRQ14, ide_irq_handler );
 	register_interrupt_handler( IRQ15, ide_irq_handler );
+
+	/*
+	char *part_table = (char *)kmalloc( 512, 0, 0 );
+	memset( part_table, 0, 512 );
+	for ( i = 0; i < 4; i++ ){
+		if ( ide_devices[i].reserved ){
+			ide_read_sectors( 0, 1, 0, 0, (unsigned long)part_table );
+			for ( j = 0x1be; j <= 0x1ee; j += 0x10 ){
+				if ( part_table[j] ){
+					printf( "    ide%d has partition at 0x%x\n", i, j );
+					printf( "          sectors: %d\n", (int)part_table[j+12]);
+				}
+			}
+			memset( part_table, 0, 512 );
+		}
+	}
+	*/
 
 	file_node_t ide_file;
 	char *dev_name = "ide0";

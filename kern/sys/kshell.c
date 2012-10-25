@@ -44,7 +44,7 @@ void init_shell( ){
 	register_shell_func( "test", sh_test );
 	register_shell_func( "atoi", sh_atoi );
 	register_shell_func( "sleep", sh_sleep );
-	register_shell_func( "shell", kshell );
+	//register_shell_func( "shell", kshell );
 	register_shell_func( "alloc", sh_alloc );
 	register_shell_func( "reboot", sh_reboot );
 	register_shell_func( "mem", sh_mem );
@@ -59,14 +59,11 @@ void register_shell_func( char *name, shell_func_t function ){
 	cmd_count++;
 }
 
-int kshell( int argc, char **argv ){
+void kshell( void ){
 	char *cmd, **args, *PS1 = "[\x12shell\x17] $ ";
 	unsigned char buf;
 	fs_cwd = fs_root;
 	int running = 1, i = 0, j = 0, arg_no = 0, cmd_found = 0;
-
-	if ( argc > 1 )
-		PS1 = argv[1];
 
 	cmd  = (void *)kmalloc( STR_LIMIT, 0, 0 );
 	args = (void *)kmalloc( STR_LIMIT, 0, 0 );
@@ -120,13 +117,11 @@ int kshell( int argc, char **argv ){
 			}
 		}
 		if ( strcmp( args[0], "exit" ) == 0 )
-			return 0;
+			return;
 		if ( !cmd_found && strlen( args[0] )){
 			printf( "Unknown command: \"%s\"\n", args[0] );
 		}
 	}
-
-	return 0;
 }
 
 int sh_test( int argc, char **argv ){
@@ -240,7 +235,7 @@ int sh_write( int argc, char **argv ){
 
 int  sh_read( int argc, char **argv ){
 	file_node_t *fp = fs_cwd;
-	char buf[0x2000];
+	char *buf = (void *)kmalloc( 512, 0, 0 );
 	int size = 512;
 	int bytes_read = 0;
 	unsigned long offset = 0;
@@ -380,7 +375,7 @@ int sh_ps( int argc, char **argv ){
 int   sh_msg( int argc, char **argv ){
 	if ( argc < 2 ) return 1;
 	ipc_msg_t *buf = kmalloc( sizeof( ipc_msg_t ), 0, 0);
-	buf->msg_type = 2;
+	buf->msg_type = MSG_STATUS;
 	buf->sender = getpid();
 	if ( argc > 2 ) buf->msg_type = atoi( argv[2] );
 

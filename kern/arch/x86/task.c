@@ -102,6 +102,10 @@ int create_thread( void (*function)()){
 	new_task->esp = new_task->stack;
 	new_task->ebp = current_task->ebp;
 
+	//new_task->msg_buf[0] = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0 );
+	new_task->msg_ptr    = 0;
+	new_task->msg_count  = 0;
+
 	temp = (task_t *)task_queue;
 	while ( temp->next ){
 		parent = temp;
@@ -148,36 +152,52 @@ void sleep_thread( unsigned long time ){
 
 	current_task->sleep = time;
 	current_task->status = S_SLEEPING;
-	//switch_task();
 
+	switch_task();
 	asm volatile( "sti" );
 }
 
-void get_msg( ipc_msg_t *buf ){
+int get_msg( ipc_msg_t *buf, int blocking ){
 	asm volatile( "cli" );
 	task_t *temp = (task_t *)current_task;
+	unsigned int i = 0;
+	int ret = 1;
 	asm volatile( "sti" );
-	while ( !temp->msg_buf ){
-		temp->status = S_LISTENING;
-		//switch_task();
-	}
-	memcpy( buf, temp->msg_buf, sizeof( ipc_msg_t ));
-	temp->msg_buf = 0;
+
+	do {
+		asm volatile( "cli" );
+		if ( temp->msg_count ){
+			i = temp->msg_ptr-- % MAX_MSGS;
+			memcpy( buf, temp->msg_buf[i], sizeof( ipc_msg_t ));
+			temp->msg_count = (temp->msg_count - 1) % MAX_MSGS;
+			ret = 0;
+			break;
+		} else {
+			ret = 1;
+			temp->status = S_LISTENING;
+			switch_task();
+		}
+		asm volatile( "sti" );
+	} while ( blocking && !ret );
+
+	return ret;
 }
 
 int send_msg( unsigned long pid, ipc_msg_t *msg ){
 	asm volatile( "cli" );
 	task_t *temp = get_pid_task( pid );
+	unsigned int i = 0;
+
 	if ( !temp ){
 		asm volatile( "sti" );
 		return 1;
 	}
 
-	if ( temp->status != S_LISTENING ){
-		asm volatile( "sti" );
-		return 2;
-	}
-
+	i = ++temp->msg_ptr % MAX_MSGS;
+	if ( !temp->msg_buf[i] )
+		temp->msg_buf[i] = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0 );
+	memcpy( temp->msg_buf[i], msg, sizeof( ipc_msg_t ));
+	temp->msg_count = (temp->msg_count + 1) % MAX_MSGS;
 	/*
 	while ( temp->status != S_LISTENING ){
 		current_task->status = S_SENDING;
@@ -185,7 +205,6 @@ int send_msg( unsigned long pid, ipc_msg_t *msg ){
 	}
 	*/
 
-	temp->msg_buf = msg;
 	asm volatile( "sti" );
 	return 0;
 }

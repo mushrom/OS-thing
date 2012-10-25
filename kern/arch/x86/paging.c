@@ -109,7 +109,7 @@ void init_paging( ){
 	set_page_dir( kernel_dir );
 
 	//move_stack( 0xe0000000, 2048 );
-	kheap = init_heap( KHEAP_START, KHEAP_SIZE, kernel_dir );
+	kheap = (void *)init_heap( KHEAP_START, KHEAP_SIZE, kernel_dir );
 	//current_dir = clone_page_dir( kernel_dir );
 	printf( "    %d total pages, %d allocated for kernel (%d free, last at 0x%x)\n", 
 			npages, npages - page_ptr, page_ptr, address );

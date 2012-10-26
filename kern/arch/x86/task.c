@@ -180,6 +180,7 @@ int get_msg( ipc_msg_t *buf, int blocking ){
 		asm volatile( "sti" );
 	} while ( blocking && !ret );
 
+	asm volatile( "sti" );
 	return ret;
 }
 

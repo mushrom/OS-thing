@@ -27,6 +27,18 @@ void irq_handler( registers_t regs ){
 	}
 }
 
+void end_bad_task( void ){
+#ifdef NO_DEBUG
+	extern task_t *current_task;
+	if ( !current_task )
+		return;
+	int buf = getpid();
+	exit_thread();
+#else
+	PANIC( "Something bad happend. :(\n" );
+#endif
+}
+
 void register_interrupt_handler( uint8_t n, isr_t handler ){
 	interrupt_handlers[n] = handler;
 }
@@ -46,9 +58,17 @@ void dump_registers( registers_t regs ){
 }
 
 void gen_protect_fault( registers_t regs ){
+	printf( "General protection fault\n" );
 	dump_registers( regs );
+	end_bad_task( );
 
-	PANIC( "General protection fault" );
+	//PANIC( "General protection fault" );
+}
+
+void zero_division_fault( registers_t regs ){
+	printf( "Zero division fault\n" );
+	dump_registers( regs );
+	end_bad_task( );
 }
 
 #endif

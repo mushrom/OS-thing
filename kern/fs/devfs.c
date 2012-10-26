@@ -27,8 +27,9 @@ void init_devfs( void ){
 	devfs_root->find_node	= devfs_find_node;
 
 	temp = fs_find_node( fs_root, "dev" );
-	temp->mount = devfs_root;
-	temp->find_node		= devfs_find_node;
+	if ( temp )
+		temp->mount = devfs_root;
+	//temp->find_node		= devfs_find_node;
 
 	/* A small testing device, prints out a-z when read */
 	file_node_t test;

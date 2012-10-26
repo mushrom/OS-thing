@@ -1,4 +1,4 @@
-/*======================================================*\
+/*======================================================*\ 
  * Mah kernel, v0x00000001
  * Simple machine
  * Props to wiki.osdev.org. ^_^
@@ -13,6 +13,7 @@
 
 #include <fs/fs.h>
 #include <fs/devfs.h>
+#include <fs/initrd.h>
 
 /*
 #include <drivers/console.h>
@@ -20,10 +21,10 @@
 #include <drivers/kb.h>
 #include <drivers/ide.h>
 */
-#include <arch/arch.h>
 #include <arch/x86/syscall.h>
 #include <arch/x86/task.h>
 #include <kern/ipc.h>
+#include <kern/multiboot.h>
 
 #include <sys/kshell.h>
 #include <lib/kmacros.h>
@@ -60,6 +61,7 @@ void main_daemon( ){
 void test( ){
 	int i = 1;
 	while ( 1 ){
+		//printf( "%d", 1/0 );
 		sleep_thread( 500 );
 		switch_task();
 	}
@@ -67,7 +69,7 @@ void test( ){
 }
 
 void meh( ){
-	ipc_msg_t msg;
+	ipc_msg_t msg, reply;
 	int ret;
 	while ( 1 ){
 		//kputchar( 'b' );
@@ -77,18 +79,26 @@ void meh( ){
 		if ( ret == 0 ){
 			printf( "pid %d: got message 0x%x (%s) from pid %d\n",
 				 getpid(), msg.msg_type, msg_lookup( msg.msg_type ), msg.sender );
+
+			if ( msg.msg_type == MSG_STATUS ){
+				reply.msg_type 	= MSG_ACK;
+				reply.sender	= getpid();
+				send_msg( msg.sender, &reply );
+			}
+
 			if ( msg.msg_type == 123 )
 				exit_thread();
 		} else {
-			sleep_thread( 1000 );
+			sleep_thread( 3000 );
 		}
 	}
 	exit_thread();
 }
 
 /* Main kernel code */
-void kmain( uint32_t initial_stack, unsigned int magic ){
+void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int magic ){
 	int i;
+	initrd_header_t *initrd = 0;
 	initial_esp = initial_stack;
 	cls();
 	set_color( COLOR_LGRAY );
@@ -100,7 +110,14 @@ void kmain( uint32_t initial_stack, unsigned int magic ){
 	if ( magic != 0x2BADB002 ){
 		kputs( "[\x14-\x17] Multiboot not found...\n" );
 	} else {
-		kputs( "[\x12+\x17] Multiboot found\n" );
+		printf( "[\x12+\x17] Multiboot found, header at 0x%x\n", mboot );
+		if ( mboot->mods_count ){
+			initrd = (void *)*((int *)mboot->mods_addr);
+			extern unsigned long placement;
+			placement += *(int *)(mboot->mods_addr + 4 );
+		} else {
+			printf( "    No multiboot modules loaded, can't load initrd\n" );
+		}
 	}
 
 	init_tables(); 		kputs( "[\x12+\x17] initialised tables\n" );
@@ -109,6 +126,10 @@ void kmain( uint32_t initial_stack, unsigned int magic ){
 	asm volatile ( "sti" );
 	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
 	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
+	if ( initrd ){
+		init_initrd( initrd ); 	
+		printf( "[\x12+\x17] initialised initrd\n" );
+	}
 
 	init_console();
 	init_keyboard(); 	//printf( "[\x12+\x17] initialised keyboard\n" );

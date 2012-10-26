@@ -45,6 +45,7 @@ unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *
 
 	addr = fplacement;
 	fplacement += size;
+	memused += size;
 	return addr;
 	/*
 	unsigned int found_free = 0, i = 0;
@@ -52,6 +53,7 @@ unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *
 	kmemnode_t *memmove = memptr;
 	kmemnode_t *ret;
 	memptr = kheap->memroot;
+	//printf( "[mem] 1:" );
 	while ( !found_free ){
 		if ( memptr->size == 0 ){
 			memmove = memptr;
@@ -67,7 +69,6 @@ unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *
 			if ( i ){
 				ret = memptr->next;
 				memptr->next = memmove->next;
-				//memptr->next = memmove;
 				memptr->next->prev = memptr;
 				memptr->size = i;
 				found_free = 1;
@@ -78,6 +79,7 @@ unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *
 		}
 	}
 	memused += i + block_size;
+	//printf( "[mem] 2 " );
 	return (unsigned long)ret;
 	*/
 }

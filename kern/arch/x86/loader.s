@@ -31,7 +31,7 @@ loader:
     mov  esp, stack + STACKSIZE         ; set up the stack
     push eax                            ; Multiboot magic number
     push esp				; Current stack pointer
-    ;push ebx                            ; Multiboot info structure
+    push ebx                            ; Multiboot info structure
  
     call kmain                          ; call kernel proper
  

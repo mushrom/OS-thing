@@ -4,6 +4,7 @@
 
 char *msg_lookup_table[] = {
 	"status",
+	"acknowledge",
 	"no block",
 	"block",
 	"string",

@@ -7,6 +7,7 @@ if [ $machine = "FreeBSD" ]; then
 	sudo mdconfig -a -t vnode -f vdrive.hdd -u 1
 	sudo mount -t msdosfs /dev/msdosfs/NO_NAME temp_mount
 	cp kern/obsidian-i586.bin temp_mount/boot/
+	cp initrd.img temp_mount/boot/
 	sudo umount temp_mount
 	sudo mdconfig -d -u 1
 	rmdir temp_mount

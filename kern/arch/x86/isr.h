@@ -33,6 +33,8 @@ void register_interrupt_handler( uint8_t, isr_t );
 void unregister_interrupt_handler( uint8_t );
 void dump_registers( registers_t regs );
 void gen_protect_fault( registers_t regs );
+void zero_division_fault( registers_t regs );
+void end_bad_task( void );
 
 #include <lib/stdio.h>
 

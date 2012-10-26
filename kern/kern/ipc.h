@@ -2,6 +2,7 @@
 #define _kernel_ipc_h
 enum {
 	MSG_STATUS,
+	MSG_ACK,
 	MSG_NO_BLOCK,
 	MSG_BLOCK,
 	MSG_STRING,

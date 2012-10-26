@@ -30,7 +30,8 @@ void page_fault_handler( registers_t regs ){
 		(regs.err_code & 0x8 )?" reserved":""
 	);
 	dump_registers( regs );
-	PANIC( "page fault" );
+	end_bad_task( );
+	//PANIC( "page fault" );
 }
 
 void alloc_page( unsigned long *address ){
@@ -80,6 +81,11 @@ void init_paging( ){
 	npages			= mem_end / PAGE_SIZE;
 	page_stack 		= (void *)kmalloc_e( npages, 1, 0 );
 
+	if ( placement & 0xfff ){
+		placement &= 0xfffff000;
+		placement += 0x1000;
+	}
+
 	//memset( kernel_dir, 0, sizeof( page_dir_t ));
 
 	for ( i = mem_end; i + PAGE_SIZE > 0; i -= PAGE_SIZE ){
@@ -92,10 +98,10 @@ void init_paging( ){
 	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE; address += PAGE_SIZE ){ DEBUG_HERE
 		get_page( address, 1, kernel_dir );
 	}
-	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 10; address += 0x1000 ){
+	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 5; address += 0x1000 ){
 		alloc_page(get_page( address, 1, kernel_dir ));
 	}
-	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 10; address += 0x1000 ){
+	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 5; address += 0x1000 ){
 		set_table_perms( PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, address, kernel_dir );
 	}
 	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE + PAGE_SIZE; address += PAGE_SIZE ){ DEBUG_HERE

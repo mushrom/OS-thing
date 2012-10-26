@@ -34,7 +34,7 @@ void init_vfs( void ){ DEBUG_HERE
 	fs_mkdir( fs_root, "dev", 0777 );
 	//open( fs_root, "afile", 0777 );
 	fs_mkdir( &fs_root[1], "asubdir", 0777 );
-	fs_mkdir( fs_root, "test", 0777 );
+	fs_mkdir( fs_root, "init", 0777 );
 	fs_open( fs_root, "afile", 0777 );
 	fs_closedir( fs_root );
 }

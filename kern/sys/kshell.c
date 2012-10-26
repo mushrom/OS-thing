@@ -28,6 +28,7 @@ int sh_reboot(int argc, char **argv );
 int   sh_mem( int argc, char **argv );
 int    sh_ps( int argc, char **argv );
 int   sh_msg( int argc, char **argv );
+int sh_getmsg(int argc, char **argv );
 int  sh_kill( int argc, char **argv );
 int sh_mkdir( int argc, char **argv );
 
@@ -51,6 +52,7 @@ void init_shell( ){
 	register_shell_func( "ps", sh_ps );
 	register_shell_func( "msg", sh_msg );
 	register_shell_func( "kill", sh_kill );
+	register_shell_func( "getmsg", sh_getmsg );
 }
 
 void register_shell_func( char *name, shell_func_t function ){
@@ -272,7 +274,7 @@ int  sh_read( int argc, char **argv ){
 			printf( "\n" );
 		}
 	}
-	memset( buf, 0, 0x2000 );
+	memset( buf, 0, 512 );
 	
 	return 0;
 }
@@ -374,7 +376,7 @@ int sh_ps( int argc, char **argv ){
 }
 int   sh_msg( int argc, char **argv ){
 	if ( argc < 2 ) return 1;
-	ipc_msg_t *buf = kmalloc( sizeof( ipc_msg_t ), 0, 0);
+	ipc_msg_t *buf = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0);
 	buf->msg_type = MSG_STATUS;
 	buf->sender = getpid();
 	if ( argc > 2 ) buf->msg_type = atoi( argv[2] );
@@ -387,12 +389,26 @@ int   sh_msg( int argc, char **argv ){
 	}
 	return 0;
 }
+
+int sh_getmsg( int argc, char **argv ){
+	ipc_msg_t *msg = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0 );
+	if ( get_msg( msg, MSG_NO_BLOCK ) == 0 ){
+		printf( "Got message 0x%x (%s) from pid %d\n", msg->msg_type, 
+				msg_lookup( msg->msg_type ), msg->sender );
+	} else {
+		printf( "No messages in queue.\n" );
+	}
+	return 0;
+}
+
 int  sh_kill( int argc, char **argv ){
 	if ( argc < 2 ) return 1;
 
 	char ret = kill_thread( atoi( argv[1] ));
 	if ( ret )
 		printf( "Could not kill pid\n" );
+
+	return 0;
 }
 #endif
 #endif

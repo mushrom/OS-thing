@@ -8,11 +8,11 @@ CROSS=$(shell pwd)/cross
 
 KNAME=obsidian-$(ARCH)
 
+NATIVECC=gcc
 CC=$(CROSS)/bin/$(TARGET)-gcc
 LD=$(CROSS)/bin/$(TARGET)-ld
 OBJCOPY=$(CROSS)/bin/$(TARGET)-objcopy
 STRIP=$(CROSS)/bin/$(TARGET)-strip
-#AS=$(CROSS)/bin/$(TARGET)-as
 AS=nasm
 #OBJCOPY=objcopy
 #STRIP=strip
@@ -48,6 +48,8 @@ image:
 	@kern=`wc -c < kern/$(KNAME).bin`; pad_s=$$(( 512 - kern%512 ));\
 		dd if=/dev/zero of=boot/pad2 bs=1 count=$$pad_s 2> /dev/null
 	@cat boot/stage1 boot/stage2 boot/pad kern/$(KNAME).bin boot/pad2 > $(NAME).hdd
+	@cd tools; $(NATIVECC) -o mkinitrd mkinitrd.c
+	@cd init; ../tools/mkinitrd ../initrd.img *
 	@sh mk_image.sh
 	@s1=`wc -c < boot/stage1`;\
 		s2=`wc -c < boot/stage2`;\

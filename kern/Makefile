@@ -13,7 +13,6 @@ CFLAGS 	  += $(CONFIG_C_FLAGS)
 LDFLAGS    = -T arch/$(ARCH)/linker.ld
 LINKFILES  = $(KNAME).bin 
 
-#KFILES	  += $(shell find arch/$(ARCH)/ -name "*.[c,s]" ) 
 KFILES	  += $(shell find arch/$(ARCH)/ sys kern lib fs mem -name "*.[c,s]" ) 
 KFILES	  += $(shell ls *.c *.s )
 LINKFILES += $(shell echo $(KFILES) | sed "s/\.[c,h,s]/.o/g")

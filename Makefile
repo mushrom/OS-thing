@@ -1,4 +1,3 @@
-NAME=image
 ARCH=i586
 TARGET=$(ARCH)-elf
 MAKE=gmake
@@ -14,8 +13,6 @@ LD=$(CROSS)/bin/$(TARGET)-ld
 OBJCOPY=$(CROSS)/bin/$(TARGET)-objcopy
 STRIP=$(CROSS)/bin/$(TARGET)-strip
 AS=nasm
-#OBJCOPY=objcopy
-#STRIP=strip
 #CC=gcc
 #LD=ld 
 CONFIG_C_FLAGS=-g -DRECOVER_FROM_PANIC
@@ -45,22 +42,10 @@ kernel:
 
 image:
 	@echo -e "[\033[0;34mGenerating image...\033[0;0m]"
-	@dd if=/dev/zero of=boot/pad bs=1 count=750 2> /dev/null
-	@kern=`wc -c < kern/$(KNAME).bin`; pad_s=$$(( 512 - kern%512 ));\
-		dd if=/dev/zero of=boot/pad2 bs=1 count=$$pad_s 2> /dev/null
-	@cat boot/stage1 boot/stage2 boot/pad kern/$(KNAME).bin boot/pad2 > $(NAME).hdd
 	@cd tools; $(NATIVECC) -o mkinitrd mkinitrd.c
 	@cd init; ../tools/mkinitrd ../initrd.img *
 	@sh mk_image.sh
-	@s1=`wc -c < boot/stage1`;\
-		s2=`wc -c < boot/stage2`;\
-		pad=`wc -c < boot/pad`;\
-		kern=`wc -c < kern/$(KNAME).bin`;\
-		buf1=$$(( s1/512 + s2/512 + pad/512 + 1 ));\
-		buf2=$$(( kern/512 + 1));\
-		echo -e "To boot:\n\t$(EMULATOR) $(EMU_FLAGS)";\
-		echo -e "grub: \tkernel $$buf1+$$buf2";\
-		echo -e "grub: \tboot"
+	@echo "To boot: $(EMULATOR) $(EMU_FLAGS)"
 	@echo -e "[\033[0;34mdone\033[0;0m]";
 
 test:

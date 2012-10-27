@@ -14,6 +14,7 @@
 
 #include <fs/fs.h>
 #include <kern/ipc.h>
+#include <arch/x86/program.h>
 
 typedef int (*shell_func_t)( int argc, char **argv );
 typedef struct shell_command {

@@ -93,7 +93,7 @@ unsigned char ide_polling( unsigned char, unsigned int );
 unsigned char ide_error( unsigned int, unsigned char );
 unsigned char ide_ata_access( unsigned char, unsigned char, unsigned int, unsigned char, unsigned char, unsigned int );
 unsigned char ide_atapi_read( unsigned char, unsigned int, unsigned char, unsigned short, unsigned int );
-void ide_irq_handler( registers_t regs );
+void ide_irq_handler( registers_t *regs );
 void ide_wait_irq( );
 int ide_read_sectors( unsigned char, unsigned char, unsigned int, unsigned short, unsigned int );
 int ide_write_sectors( unsigned char, unsigned char, unsigned int, unsigned short, unsigned int );

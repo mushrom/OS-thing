@@ -40,6 +40,13 @@ char *g_errfile = "unknown";
 char *g_errfile = "Debugging disabled";
 #endif
 
+void user_daemon( ){
+	switch_to_usermode();
+	syscall_kputs( "[\x12+\x17] Usermode is operational\n" );
+	//exit_thread();
+	while( 1 );
+}
+
 void main_daemon( ){
 	ipc_msg_t msg;
 	int ret;
@@ -59,10 +66,9 @@ void main_daemon( ){
 }
 
 void test( ){
-	int i = 1;
 	while ( 1 ){
-		//printf( "%d", 1/0 );
-		sleep_thread( 500 );
+		//printf( "pid %d, calling in\n", getpid( ));
+		sleep_thread( 1000 );
 		switch_task();
 	}
 	exit_thread();
@@ -88,6 +94,9 @@ void meh( ){
 
 			if ( msg.msg_type == 123 )
 				exit_thread();
+
+			if ( msg.msg_type == 234 )
+				ret = ret/0;
 		} else {
 			sleep_thread( 3000 );
 		}
@@ -116,7 +125,7 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 			extern unsigned long placement;
 			placement += *(int *)(mboot->mods_addr + 4 );
 		} else {
-			printf( "    No multiboot modules loaded, can't load initrd\n" );
+			printf( "    No multiboot modules loaded\n" );
 		}
 	}
 
@@ -141,7 +150,6 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 	con_scroll_offset = 0;
 	
-	//switch_to_usermode();
 	//syscall_kputs( "Woot, it works. ^_^\n" );
 
 	for ( i = 0; i < 3; i++ )
@@ -149,8 +157,8 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	for ( i = 0; i < 3; i++ )
 		create_thread( &meh );
 
-	create_thread( &kshell );
 	create_thread( &main_daemon );
+	create_thread( &user_daemon );
+	create_thread( &kshell );
 	sleep_thread( 0xffffffff );
-	reboot();
 }

@@ -2,6 +2,7 @@
 #define _kernel_syscall_h
 #include <arch/x86/isr.h>
 #include <lib/stdio.h>
+#include <arch/x86/task.h>
 
 #define DECL_SYSCALL0(fn) int syscall_##fn();
 #define DECL_SYSCALL1(fn, p1) int syscall_##fn(p1);

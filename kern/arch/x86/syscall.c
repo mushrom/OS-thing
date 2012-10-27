@@ -2,7 +2,7 @@
 #define _kernel_syscall_c
 #include <arch/x86/syscall.h>
 
-static void syscall_handler( registers_t regs );
+static void syscall_handler( registers_t *regs );
 
 #define NUM_SYSCALLS 3
 static void *syscalls[ NUM_SYSCALLS ] = {
@@ -19,11 +19,11 @@ void init_syscalls(){
 	register_interrupt_handler( 0x50, &syscall_handler );
 }
 
-static void syscall_handler( registers_t regs ){
-	if ( regs.eax >= NUM_SYSCALLS )
+static void syscall_handler( registers_t *regs ){
+	if ( regs->eax >= NUM_SYSCALLS )
 		return;
 
-	void *location = syscalls[regs.eax];
+	void *location = syscalls[regs->eax];
 
 	int ret;
 	asm volatile( "	\
@@ -38,10 +38,8 @@ static void syscall_handler( registers_t regs ){
 	pop %%ebx;	\
 	pop %%ebx;	\
 	pop %%ebx;	\
-	" : "=a"(ret) : "r"(regs.edi), "r"(regs.esi), "r"(regs.edx), "r"(regs.ecx), "r"(regs.ebx), 
-		"r"(location));
-	regs.eax = ret;
-
+	" : "=a"(ret) : "r"(regs->edi), "r"(regs->esi), "r"(regs->edx), "r"(regs->ecx), "r"(regs->ebx), "r"(location));
+	regs->eax = ret;
 }
 
 #endif

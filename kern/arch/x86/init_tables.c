@@ -116,8 +116,8 @@ static void init_idt( void ){
 	idt_set_gate( 46, (uint32_t)irq14, 0x08, 0x8e );
 	idt_set_gate( 47, (uint32_t)irq15, 0x08, 0x8e );
 
-	idt_set_gate( 48,(uint32_t)isr48,  0x08, 0x8e ); 	//Dump registers
-	idt_set_gate( 0x50,(uint32_t)isr80,  0x08, 0x8e ); 	//Syscall (on 32 bit, if ever ported to 64 might as well keep it)
+	idt_set_gate( 48,(uint32_t)isr48,  0x08, 0x8e );	 	//Dump registers
+	idt_set_gate( 0x50,(uint32_t)isr80,  0x08, 0x8e | 0x60 ); 	//Syscall
 
 	idt_flush((uint32_t)&idt_ptr );
 }
@@ -140,7 +140,8 @@ static void idt_set_gate( uint8_t num, uint32_t base, uint16_t sel, uint8_t flag
 
 	idt_entries[num].sel		= sel;
 	idt_entries[num].always0	= 0;
-	idt_entries[num].flags		= flags /* | 0x60 *//* <-Uncomment for usermode */;
+	//idt_entries[num].flags		= flags | 0x60 /* <-Uncomment for usermode */;
+	idt_entries[num].flags		= flags;
 }
 
 static void write_tss( int32_t num, uint16_t ss0, uint32_t esp0 ){

@@ -3,7 +3,7 @@ ARCH=i586
 TARGET=$(ARCH)-elf
 MAKE=gmake
 EMULATOR=qemu
-EMU_FLAGS=-hda vdrive.hdd -hdb $(NAME).hdd -s 
+EMU_FLAGS=-hda vdrive.hdd -s 
 CROSS=$(shell pwd)/cross
 
 KNAME=obsidian-$(ARCH)
@@ -18,8 +18,9 @@ AS=nasm
 #STRIP=strip
 #CC=gcc
 #LD=ld 
-CONFIG_C_FLAGS=-g
+CONFIG_C_FLAGS=-g -DRECOVER_FROM_PANIC
 #CONFIG_C_FLAGS=-g -DNO_DEBUG
+#CONFIG_C_FLAGS=-g
 
 all: check kernel image
 

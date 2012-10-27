@@ -37,6 +37,7 @@ typedef struct task {
 
 void init_tasking( );
 int  create_thread( void (*)());
+int  kill_thread( unsigned long pid );
 void sleep_thread( unsigned long time );
 void exit_thread( );
 

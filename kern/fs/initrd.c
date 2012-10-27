@@ -58,14 +58,16 @@ void init_initrd( initrd_header_t *header ){
 		initrd_nodes[j]->read		= initrd_read;
 		initrd_nodes[j]->find_node	= initrd_find_node;
 
+	/*
 		printf( "    file %s, size: %d:%d:%d\n", initrd_root->dirp->dir[i]->name, files[i].length,
 					initrd_root->dirp->dir_count, files[i].offset );
-		//printf( ":%d:%d\n", initrd_nodes[j]->read, 0 );
+		printf( ":%d:%d\n", initrd_nodes[j]->read, 0 );
+	*/
 	}
 
 	initrd_root->dirp->dir_ptr = 0;
 	data_offset = ( sizeof( initrd_file_header_t ) * header->nfiles ) + sizeof( initrd_header_t );
-	data = header;
+	data = (char *)header;
 		
 	extern file_node_t *fs_root;
 	file_node_t *temp = fs_find_node( fs_root, "init" );

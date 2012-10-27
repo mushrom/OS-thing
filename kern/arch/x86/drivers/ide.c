@@ -1,7 +1,7 @@
 #ifndef _kernel_ide_c
 #define _kernel_ide_c
 #include "ide.h"
-/* This source is from the osdev wiki */
+/* This source is from the wiki over at wiki.osdev.org */
 
 typedef struct ide_channel_regs {
 	unsigned short base;
@@ -105,29 +105,14 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 	}
 	register_interrupt_handler( IRQ14, ide_irq_handler );
 	register_interrupt_handler( IRQ15, ide_irq_handler );
-
-	/*
-	char *part_table = (char *)kmalloc( 512, 0, 0 );
-	memset( part_table, 0, 512 );
-	for ( i = 0; i < 4; i++ ){
-		if ( ide_devices[i].reserved ){
-			ide_read_sectors( 0, 1, 0, 0, (unsigned long)part_table );
-			for ( j = 0x1be; j <= 0x1ee; j += 0x10 ){
-				if ( part_table[j] ){
-					printf( "    ide%d has partition at 0x%x\n", i, j );
-					printf( "          sectors: %d\n", (int)part_table[j+12]);
-				}
-			}
-			memset( part_table, 0, 512 );
-		}
-	}
-	*/
+	register_interrupt_handler( IRQ11, ide_irq_handler );
+	register_interrupt_handler( IRQ9,  ide_irq_handler );
 
 	file_node_t ide_file;
 	char *dev_name = "ide0";
 	for ( i = 0; i < 4; i++ ){
 		if ( ide_devices[i].reserved ){
-			printf( "    %s: Found %s drive, %dkb (%d): %s\n", 
+			printf( "    %s: %s drive, %dkb (%d): %s\n", 
 				dev_name,
 				(char *[]){"ATA", "ATAPI"}[ide_devices[i].type],
 				(ide_devices[i].size + 1)/ 2,
@@ -145,6 +130,22 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 			ide_file.dev_id	= i;
 			devfs_register_device( ide_file );
 			dev_name[3]++;
+		}
+	}
+
+	char *part_table = (char *)kmalloc( 512, 0, 0 );
+	memset( part_table, 0, 512 );
+	/* "i < 2" for testing only, switch 2 to 4 once atapi is finished */
+	for ( i = 0; i < 2; i++ ){
+		if ( ide_devices[i].reserved ){
+			ide_read_sectors( i, 1, 0, 0, (unsigned long)part_table );
+			for ( j = 0x1be; j <= 0x1ee; j += 0x10 ){
+				if ( part_table[j] ){
+					printf( "    ide%d has partition at 0x%x\n", i, j );
+					printf( "          sectors: %d\n", (int)part_table[j+12]);
+				} 
+			}
+			memset( part_table, 0, 512 );
 		}
 	}
 }
@@ -526,7 +527,7 @@ unsigned char ide_atapi_read( 	unsigned char drive, unsigned int lba, unsigned c
 	return 0;
 }
 
-void ide_irq_handler( registers_t regs ){
+void ide_irq_handler( registers_t *regs ){
 	ide_irq_invoked = 1;
 }
 

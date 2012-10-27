@@ -18,16 +18,16 @@ void set_page_dir( page_dir_t *dir ){
 	asm volatile( "mov %0, %%cr0":: "r"(cr0 | 0x80000000));
 }
 	
-void page_fault_handler( registers_t regs ){
+void page_fault_handler( registers_t *regs ){
 	unsigned long fault_addr;
 	asm volatile( "mov %%cr2, %0": "=r"(fault_addr));
 
 	printf( "page fault: address 0x%x%s%s%s%s\n",
 		fault_addr,
-		(!regs.err_code & 0x1 )?" not present":"",
-		(regs.err_code & 0x2 )?" read-only":"",
-		(regs.err_code & 0x4 )?" user-mode":"",
-		(regs.err_code & 0x8 )?" reserved":""
+		(!regs->err_code & 0x1 )?" not present":"",
+		(regs->err_code & 0x2 )?" read-only":"",
+		(regs->err_code & 0x4 )?" user-mode":"",
+		(regs->err_code & 0x8 )?" reserved":""
 	);
 	dump_registers( regs );
 	end_bad_task( );

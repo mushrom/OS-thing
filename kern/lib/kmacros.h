@@ -11,7 +11,8 @@ extern unsigned int g_errline;
 #else
 #define PANIC( a ) { printf( "Great, you broke it. Sit here and think about what you did."\
 				"\n\t%s"\
-				"\n\t%s:%d\n", a, g_errfile, g_errline );\
+				"\n\tpanic at: %s:%d"\
+				"\n\tlast debug: %s:%d\n", a, __FILE__, __LINE__, g_errfile, g_errline );\
 				asm volatile( "hlt" );\
 		   }
 #endif

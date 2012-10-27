@@ -41,7 +41,7 @@ unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *
 		fplacement += 0x1000;
 	}
 	if ( physical )
-		*physical = get_page( fplacement, 0, kernel_dir );
+		*physical = (unsigned long)get_page( fplacement, 0, kernel_dir );
 
 	addr = fplacement;
 	fplacement += size;
@@ -103,7 +103,8 @@ unsigned long get_memused( void ){
 }
 
 struct heap *init_heap( unsigned long start, unsigned long size, page_dir_t *dir ){ DEBUG_HERE
-	unsigned long block_c = 0, i = 0;
+	unsigned long 	//i = 0,
+			block_c = 0;
 	heap_t *heap = (void *)kmalloc( sizeof( heap_t ), 0, 0 );
 	heap->memmove = heap->memptr = heap->memroot = (void *)start;
 	kmemnode_t *memptr = heap->memptr;

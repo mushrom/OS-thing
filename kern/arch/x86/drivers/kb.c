@@ -36,7 +36,7 @@ unsigned char 	*lower_map = us_kbd,
 		*upper_map = us_kbd_shift;
 unsigned char 	*map;
 
-static void keyboard_handler( registers_t regs ){
+static void keyboard_handler( registers_t *regs ){
 	unsigned char scancode;
 	unsigned char buf;
 	if ( !map_set ){

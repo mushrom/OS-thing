@@ -31,6 +31,8 @@ int   sh_msg( int argc, char **argv );
 int sh_getmsg(int argc, char **argv );
 int  sh_kill( int argc, char **argv );
 int sh_mkdir( int argc, char **argv );
+int   sh_run( int argc, char **argv );
+int sh_uptime(int argc, char **argv );
 
 void init_shell( ){
 	register_shell_func( "ls", sh_list );
@@ -53,6 +55,8 @@ void init_shell( ){
 	register_shell_func( "msg", sh_msg );
 	register_shell_func( "kill", sh_kill );
 	register_shell_func( "getmsg", sh_getmsg );
+	register_shell_func( "run", sh_run );
+	register_shell_func( "uptime", sh_uptime );
 }
 
 void register_shell_func( char *name, shell_func_t function ){
@@ -410,5 +414,32 @@ int  sh_kill( int argc, char **argv ){
 
 	return 0;
 }
+
+int sh_uptime( int argc, char **argv ){
+	unsigned long uptime 	= get_uptime();
+	unsigned long minutes 	= ( uptime / 60 );
+	unsigned long hours	= ( minutes / 60 );
+	unsigned long days	= ( hours / 24 );
+
+	printf( "Uptime: %u days, %uh:%um:%us\n", days, hours % 60, minutes % 60, uptime % 60 );
+
+	return 0;
+}
+
+int   sh_run( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+
+	file_node_t *fp = fs_cwd;
+
+	fp = fs_find_node( fs_cwd, argv[1] );
+	if ( !fp ){
+		printf( "Could not find file\n" );
+		return 1;
+	}
+	load_program( fp );
+
+	return 0;
+}
+
 #endif
 #endif

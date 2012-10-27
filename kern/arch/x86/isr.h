@@ -28,12 +28,12 @@ typedef struct registers {
 	uint32_t	eip, cs, eflags, useresp, ss;
 } registers_t;
 
-typedef void (*isr_t)(registers_t);
+typedef void (*isr_t)(registers_t *);
 void register_interrupt_handler( uint8_t, isr_t );
 void unregister_interrupt_handler( uint8_t );
-void dump_registers( registers_t regs );
-void gen_protect_fault( registers_t regs );
-void zero_division_fault( registers_t regs );
+void dump_registers( registers_t *regs );
+void gen_protect_fault( registers_t *regs );
+void zero_division_fault( registers_t *regs );
 void end_bad_task( void );
 
 #include <lib/stdio.h>

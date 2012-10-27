@@ -5,6 +5,7 @@
 extern page_dir_t *current_dir;
 extern unsigned long initial_esp;
 extern unsigned long read_eip();
+extern unsigned long isr_error_count;
 volatile task_t *current_task = 0,
 		*task_queue = 0;
 
@@ -68,6 +69,8 @@ void switch_task(){
 	current_dir = current_task->dir;
 	set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
 
+	if ( isr_error_count ) isr_error_count--;
+
 	//printf( "[4] 0x%x\n", eip );
 
 	asm volatile (" 	\
@@ -102,7 +105,9 @@ int create_thread( void (*function)()){
 	new_task->esp = new_task->stack;
 	new_task->ebp = current_task->ebp;
 
-	//new_task->msg_buf[0] = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0 );
+	int i = 0;
+	for ( i = 0; i < MAX_MSGS; i++ )
+		new_task->msg_buf[i] = 0;
 	new_task->msg_ptr    = 0;
 	new_task->msg_count  = 0;
 
@@ -128,6 +133,8 @@ void exit_thread( ){
 		temp->parent->next = 0;
 	}
 	printf( "pid %d exited\n", temp->id );
+	/*extern void kshell();
+	create_thread( &kshell );*/
 	switch_task();
 	asm volatile( "sti" );
 }
@@ -156,6 +163,7 @@ void sleep_thread( unsigned long time ){
 	switch_task();
 	asm volatile( "sti" );
 }
+
 
 int get_msg( ipc_msg_t *buf, int blocking ){
 	asm volatile( "cli" );
@@ -234,7 +242,7 @@ void move_stack( void *new_stack_start, unsigned long size ){
 	//memcpy((char *)0xe0000000 - 0x1000, "test", 5 );
 	printf( "    Woot, it didn't break. :D\n", 0xe0000000 - 0x1000 );
 
-	unsigned long old_esp, old_ebp, offset, new_esp, new_ebp;
+	unsigned long old_esp, old_ebp, offset, new_esp /*,new_ebp*/;
 	asm volatile( "mov %%esp, %0" : "=r" (old_esp));
 	asm volatile( "mov %%ebp, %0" : "=r" (old_ebp));
 
@@ -293,9 +301,9 @@ void switch_to_usermode( void ){
 		pushl $0x23;	\
 		pushl %eax;	\
 		pushf;		\
-		popl %eax;	\
-		or $0x200, %eax; \
-		pushl %eax;	\
+		pop %eax;	\
+		or $0x200, %eax;\
+		push %eax;	\
 		pushl $0x1b;	\
 		push $1f;	\
 		iret;		\

@@ -13,6 +13,7 @@
 #include <ipc.h>
 #include <task.h>
 #include <timer.h>
+#include <syscall.h>
 
 typedef int (*shell_func_t)( int argc, char **argv );
 typedef struct shell_command {

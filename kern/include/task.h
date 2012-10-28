@@ -5,9 +5,11 @@
 #include <alloc.h>
 #include <kmacros.h>
 #include <ipc.h>
+#include <fs.h>
 
 #define KERNEL_STACK_SIZE 4096
 #define MAX_MSGS 32
+#define MAX_FILES 32
 
 enum {
 	S_RUNNING,
@@ -16,24 +18,34 @@ enum {
 	S_SENDING
 };
 
-struct page_dir;
+//struct page_dir;
+//struct file_descript;
 
 typedef struct task {
 	unsigned long 	eip,
 			esp,
 			ebp,
-			id;
+			id,
+			uid,
+			gid;
 	unsigned long stack;
 	unsigned long sleep;
 	unsigned long status;
 	unsigned long time;
-	ipc_msg_t *msg_buf[MAX_MSGS];
-	unsigned char msg_ptr;
-	unsigned long msg_count;
 	struct page_dir *dir;
 	struct task *next;
 	struct task *prev;
 	struct task *parent;
+
+	ipc_msg_t *msg_buf[MAX_MSGS];
+	unsigned char msg_ptr;
+	unsigned long msg_count;
+
+	struct file_node     *root;
+	struct file_node     *cwd;
+	struct file_descript *files[MAX_FILES];
+	unsigned long file_count;
+	unsigned long file_highest;
 } task_t;
 
 void init_tasking( );
@@ -47,10 +59,11 @@ int  send_msg( unsigned long pid, ipc_msg_t *msg );
 int  get_msg( ipc_msg_t *buf, int blocking );
 
 void dump_pids( void );
-int  getpid( void );
 void switch_to_usermode( void );
 void switch_task();
 void move_stack( void *, unsigned long size );
+
+int getpid( void );
 
 task_t *get_pid_task( unsigned long pid );
 

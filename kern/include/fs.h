@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <kmacros.h>
+#include <task.h>
 
 typedef enum {
 	FS_FILE,
@@ -42,6 +43,7 @@ typedef int (*mkdir_func)( struct file_node *, char *, int );
 typedef int (*close_func)( struct file_node * );
 typedef struct file_node *(*find_node_func)( struct file_node *, char *name );
 
+/*! \brief The internal file node structure, every file has one. */
 typedef struct file_node {
 	file_type_t	type;
 
@@ -73,6 +75,13 @@ typedef struct file_node {
 
 	struct file_node *mount;
 } file_node_t;
+
+typedef struct file_descript {
+	file_node_t *file;
+	unsigned long r_offset; /* read offset */
+	unsigned long w_offset; /* write offset */
+	unsigned long d_offset; /* directory offset */
+} file_descript_t;
 
 typedef struct vfs_file_header {
 	void *data;
@@ -119,5 +128,13 @@ struct dirent *fs_readdir( struct dirp *dir );
 
 struct dirp *vfs_opendir( file_node_t * );
 int vfs_closedir( file_node_t * );
+
+file_node_t *fs_find_path( char *path );
+int open( char *path, int flags );
+int close( int fd );
+int read( int fd, void *buf, unsigned long size );
+int write( int fd, void *buf, unsigned long size );
+struct dirp *fdopendir( int fd );
+struct dirent *readdir( int fd, struct dirp *dir );
 
 #endif

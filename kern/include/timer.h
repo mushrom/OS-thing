@@ -6,7 +6,7 @@
 #include <task.h>
 
 #define PIT_FREQ 1193180
-#define TIMER_FREQ 44100
+#define TIMER_FREQ 1000
 
 void init_timer( uint32_t );
 void wait( uint32_t );

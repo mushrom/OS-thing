@@ -7,6 +7,7 @@
  * sleeps.
  * 
  * The \ref syscall.c "system call" interface uses interrupt 0x50 (decimal 80) to enter.
+ *
  */
 
 #include <skio.h>
@@ -38,24 +39,31 @@
 #include <kmacros.h>
 #include <common.h>
 
-unsigned int initial_esp;
-unsigned int g_errline = 0;
-extern unsigned short con_scroll_offset;
-page_dir_t *kernel_dir;
+unsigned int initial_esp; 			/**< esp at start, is set to \ref initial_stack */
+unsigned int g_errline = 0;			/**< Error line of last debug, see \ref kmacros.h */
+extern unsigned short con_scroll_offset;	/**< How many lines to skip while scrolling */
+page_dir_t *kernel_dir;				/**< kernel page directory */
 
 #ifndef NO_DEBUG
+/** File of last debug, see \ref kmacros.h */
 char *g_errfile = "unknown";
 #else
 char *g_errfile = "Debugging disabled";
 #endif
 
+/** The process that does the jump to usermode */
 void user_daemon( ){
 	switch_to_usermode();
-	syscall_kputs( "[\x12+\x17] Usermode is operational\n" );
-	//exit_thread();
+	char *str = "[\x12+\x17] Usermode is operational.\n";
+	int fp = open( "/dev/tty", 0 );
+	write( fp, str, 33 );
+	close( fp );
 	while( 1 );
 }
 
+/** A test daemon that listens for a message, and executes commands
+ * based on the message
+ */
 void main_daemon( ){
 	ipc_msg_t msg;
 	int ret;
@@ -74,6 +82,7 @@ void main_daemon( ){
 	}
 }
 
+/** A process to test sleeping/switching tasks */
 void test( ){
 	while ( 1 ){
 		//printf( "pid %d, calling in\n", getpid( ));
@@ -83,6 +92,7 @@ void test( ){
 	exit_thread();
 }
 
+/** A process to test the ipc's messaging */
 void meh( ){
 	ipc_msg_t msg, reply;
 	int ret;
@@ -113,7 +123,11 @@ void meh( ){
 	exit_thread();
 }
 
-/*! \brief Main kernel code */
+/** \brief Main kernel code 
+ * @param mboot multiboot structure provided by bootloader
+ * @param initial_stack initial esp pointer, pushed by loader.s
+ * @param magic multiboot magic value
+ * */
 void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int magic ){
 	int i;
 	initrd_header_t *initrd = 0;

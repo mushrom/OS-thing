@@ -10,6 +10,7 @@ char *data;
 unsigned long 	initrd_i_count = 0,
 		data_offset = 0;
 int initrd_read( file_node_t *node, void *buf, unsigned long size );
+int initrd_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset );
 file_node_t *initrd_find_node( file_node_t *node, char *name ); 
 
 void init_initrd( initrd_header_t *header ){
@@ -56,6 +57,7 @@ void init_initrd( initrd_header_t *header ){
 		initrd_nodes[j]->opendir 	= vfs_opendir;
 		initrd_nodes[j]->closedir	= vfs_closedir;
 		initrd_nodes[j]->read		= initrd_read;
+		initrd_nodes[j]->pread		= initrd_pread;
 		initrd_nodes[j]->find_node	= initrd_find_node;
 
 	/*
@@ -126,6 +128,16 @@ int initrd_read( file_node_t *node, void *buf, unsigned long size ){
 		output[i] = data[ data_offset + files[inode-1].offset + i ];
 	}
 	return i;
+}
+
+int initrd_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
+	char *output 	= buf;
+	unsigned int i, inode = node->inode;
+
+	for ( i = offset; i < size + offset && i < node->size; i++ ){
+		output[i] = data[ data_offset + files[inode-1].offset + i ];
+	}
+	return i - offset;
 }
 
 #endif

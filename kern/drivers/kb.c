@@ -74,6 +74,10 @@ static int read_kb( file_node_t *node, void *buf, size_t size ){
 	return i;
 }
 
+static int pread_kb( file_node_t *node, void *buf, size_t size, unsigned long offset ){
+	return read_kb( node, buf, size );
+}
+
 void unload_keyboard( void ){
 	unregister_interrupt_handler( IRQ1 );
 }
@@ -84,6 +88,7 @@ void init_keyboard( void ){
 	memcpy( kb_driver.name, "kb0", 4 );
 	kb_driver.type	= FS_CHAR_D;
 	kb_driver.read	= read_kb;
+	kb_driver.pread	= pread_kb;
 
 	devfs_register_device( kb_driver );
 	register_interrupt_handler( IRQ1, &keyboard_handler );

@@ -4,7 +4,7 @@
 
 extern page_dir_t *current_dir;
 extern unsigned long initial_esp;
-extern unsigned long read_eip();
+extern unsigned long read_eip(); 	/**< \brief Get current EIP */
 extern unsigned long isr_error_count;
 extern void set_kernel_stack();
 volatile task_t *current_task = 0,
@@ -14,6 +14,7 @@ unsigned long next_pid = 1;
 
 void init_tasking( ){
 	asm volatile( "cli" );
+	extern file_node_t *fs_root;
 
 	current_task = task_queue = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
 	current_task->id = next_pid++;
@@ -24,10 +25,21 @@ void init_tasking( ){
 	current_task->next = 0;
 	current_task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 );
 	current_task->sleep = 0;
+	current_task->cwd  = fs_root;
+	current_task->root = fs_root;
+
+	int i = 0;
+	for ( i = 0; i < MAX_MSGS; i++ )
+		current_task->msg_buf[i] = 0;
+	for ( i = 0; i < MAX_FILES; i++ )
+		current_task->files[i] = 0;
 
 	asm volatile( "sti" );
 }
 
+/** \brief The scheduler.
+ * Acts along with \ref timer_call to switch tasks.
+ */
 void switch_task(){
 	if ( !current_task )
 		return;
@@ -85,6 +97,10 @@ void switch_task(){
 		jmp *%%ecx" :: "r"(eip), "r"(esp), "r"(ebp), "r"(current_dir->address ));
 }
 
+/** \brief Adds new thread to task queue
+ * @param function The address of a void (*)() type function to start the thread at
+ * @return The new thread's pid
+ */
 int create_thread( void (*function)()){
 	asm volatile( "cli" );
 
@@ -109,8 +125,14 @@ int create_thread( void (*function)()){
 	int i = 0;
 	for ( i = 0; i < MAX_MSGS; i++ )
 		new_task->msg_buf[i] = 0;
+	for ( i = 0; i < MAX_FILES; i++ )
+		new_task->files[i] = 0;
+
 	new_task->msg_ptr    = 0;
 	new_task->msg_count  = 0;
+	new_task->file_count = 0;
+	new_task->cwd 	     = parent->cwd;
+	new_task->root 	     = parent->root;
 
 	temp = (task_t *)task_queue;
 	while ( temp->next ){
@@ -123,7 +145,8 @@ int create_thread( void (*function)()){
 	asm volatile( "sti" );
 	return new_task->id;
 }
-	
+
+/** \brief Removes calling task from queue */
 void exit_thread( ){
 	asm volatile( "cli" );
 	task_t *temp = (task_t *)current_task;
@@ -140,6 +163,10 @@ void exit_thread( ){
 	asm volatile( "sti" );
 }
 
+/** \brief Removes a pid from task queue
+ * @param pid The pid of task to kill
+ * @return 1 if the pid doesn't exist, 0 otherwise
+ */
 int kill_thread( unsigned long pid ){
 	asm volatile( "cli" );
 	task_t *temp = get_pid_task( pid );
@@ -155,6 +182,9 @@ int kill_thread( unsigned long pid ){
 	return 0;
 }
 
+/** \brief Sleep calling task
+ * @param time How many scheduler loops to sleep for.
+ */
 void sleep_thread( unsigned long time ){
 	asm volatile( "cli" );
 
@@ -165,7 +195,11 @@ void sleep_thread( unsigned long time ){
 	asm volatile( "sti" );
 }
 
-
+/** \brief Recieve a message from another process
+ * @param buf Buffer to read message into
+ * @param blocking Whether to block the thread or not
+ * @return 0 if a message was recieved, or 1 if there were no messages.
+ */
 int get_msg( ipc_msg_t *buf, int blocking ){
 	asm volatile( "cli" );
 	task_t *temp = (task_t *)current_task;
@@ -193,6 +227,11 @@ int get_msg( ipc_msg_t *buf, int blocking ){
 	return ret;
 }
 
+/** \brief Send message to another process 
+ * @param pid The pid to send to
+ * @param msg Pointer to message buffer to send
+ * @return 0 if sent, or 1 if the pid couldn't be found
+ */
 int send_msg( unsigned long pid, ipc_msg_t *msg ){
 	asm volatile( "cli" );
 	task_t *temp = get_pid_task( pid );
@@ -219,6 +258,10 @@ int send_msg( unsigned long pid, ipc_msg_t *msg ){
 	return 0;
 }
 
+/** \brief Get the \ref task_t structure of a certain pid
+ * @param pid The pid to retrieve infomation for.
+ * @return Pointer to \ref task_t if found, 0 otherwise
+ */
 task_t *get_pid_task( unsigned long pid ){
 	task_t *temp = (task_t *)task_queue;
 	while ( temp ){
@@ -253,10 +296,12 @@ void move_stack( void *new_stack_start, unsigned long size ){
 	memcpy((void *)new_esp, (void *)old_esp, initial_esp - old_esp );
 }
 
+/** \brief Return caller's pid */
 int getpid(){
 	return current_task->id;
 }
 
+/** \brief Dump all running pids to screen */
 void dump_pids( void ){
 	task_t *temp = (task_t *)task_queue;
 	char *buf;
@@ -287,6 +332,7 @@ void dump_pids( void ){
 	temp = (task_t *)task_queue;
 }
 
+/** \brief Switch to user mode. (What's on the tin...) */
 void switch_to_usermode( void ){
 	set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
 

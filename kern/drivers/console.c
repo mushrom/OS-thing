@@ -90,6 +90,10 @@ static int console_write( file_node_t *node, void *buf, unsigned long size ){
 	return i;
 }
 
+static int console_pwrite( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
+	return console_write( node, buf, size );
+}
+
 void init_console(){
 	file_node_t console_driver;
 
@@ -97,6 +101,7 @@ void init_console(){
 	memcpy( console_driver.name, "tty", 4 );
 	console_driver.type	= FS_CHAR_D;
 	console_driver.write	= console_write;
+	console_driver.pwrite	= console_pwrite;
 
 	devfs_register_device( console_driver );
 }

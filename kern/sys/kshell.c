@@ -8,6 +8,7 @@
 #define CMD_LIMIT 64
 
 extern file_node_t *fs_root;
+extern task_t 	   *current_task;
 file_node_t *fs_cwd;
 int cmd_count = 0;
 shell_cmd_t commands[ CMD_LIMIT ];
@@ -155,6 +156,7 @@ int sh_clear( int argc, char **argv ){
 	return 0;
 }
 
+/*
 int  sh_list( int argc, char **argv ){
 	file_node_t *fp = fs_cwd, *file_thing;
 	struct dirp *dir;
@@ -202,7 +204,29 @@ int  sh_list( int argc, char **argv ){
 
 	return 0;
 }
+*/
+int  sh_list( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+	int fp = syscall_open( argv[1], 0 ), items = 0;
+	struct dirp *dir = fdopendir( fp );
+	struct dirent *entry;
 
+	if ( dir ){
+		while (( entry = readdir( fp, dir ))){
+			printf( "%s\t", entry->name );
+			items++;
+			if ( items % 8 == 0 )
+				printf( "\n" );
+		}
+		printf( "\n" );
+		syscall_close( fp );
+	} else {
+		printf( "Could not open directory\n" );
+	}
+	return 0;
+}
+
+/*
 int sh_write( int argc, char **argv ){
 	file_node_t *fp = fs_cwd;
 	int bytes_written = 0;
@@ -233,7 +257,27 @@ int sh_write( int argc, char **argv ){
 
 	return 0;
 }
+*/
+int sh_write( int argc, char **argv ){
+	if ( argc < 3 ) return 1;
+	int fp = syscall_open( argv[1], 0 ), bytes = 0;
+	printf( "Got fd %d\n", fp );
 
+	if ( fp == -1 ){
+		printf( "File not found\n" );
+		return 1;
+	}
+	if (( bytes = syscall_write( fp, argv[2], strlen( argv[2] ))) < 0 ){
+		printf( "Could not write to file\n" );
+		return 1;
+	}
+	//printf( "Wrote %d bytes\n", bytes );
+	syscall_close( fp );
+
+	return 0;
+}
+
+/*
 int  sh_read( int argc, char **argv ){
 	file_node_t *fp = fs_cwd;
 	char *buf = (void *)kmalloc( 512, 0, 0 );
@@ -277,6 +321,28 @@ int  sh_read( int argc, char **argv ){
 	
 	return 0;
 }
+*/
+int  sh_read( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+	int fp = syscall_open( argv[1], 0 ), bytes = 0;
+	char *buf = (char *)kmalloc( 512, 0, 0 );
+
+	printf( "Got fd %d\n", fp );
+	if ( fp == -1 ){
+		printf( "File not found\n" );
+		return 1;
+	}
+	if (( bytes = syscall_read( fp, buf, 512 )) < 0 ){
+		printf( "Could not read file\n" );
+		return 1;
+	}
+	
+	//printf( "Read %d bytes:\n%s\n", bytes, buf );
+	printf( "%s\n", buf );
+	syscall_close( fp );
+
+	return 0;
+}
 
 /*
 int  sh_dump( int argc, char **argv ){
@@ -303,9 +369,9 @@ int sh_mkdir( int argc, char **argv ){
 int    sh_cd( int argc, char **argv ){
 	file_node_t *fp;
 	if ( argc > 1 ){
-		fp = fs_find_node( fs_cwd, argv[1] );
+		fp = fs_find_path( argv[1] );
 		if ( fp ){
-			fs_cwd = fp;
+			fs_cwd = current_task->cwd = fp;
 		} else {
 			printf( "Could not cd\n" );
 		}

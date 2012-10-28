@@ -8,7 +8,9 @@ extern file_node_t *fs_root;
 file_node_t 	*temp;
 unsigned long	devfs_i_count = 1;
 int meh_read( file_node_t *node, void *buf, unsigned long size );
+int meh_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset );
 int null_read( file_node_t *node, void *buf, unsigned long size );
+int null_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset );
 int null_write( file_node_t *node, void *buf, unsigned long size );
 
 void init_devfs( void ){
@@ -38,6 +40,7 @@ void init_devfs( void ){
 	test.type = FS_CHAR_D;
 	test.find_node		= devfs_find_node;
 	test.read		= meh_read;
+	test.pread		= meh_pread;
 	devfs_register_device( test );
 
 	memset( &test, 0, sizeof( file_node_t ));
@@ -45,6 +48,7 @@ void init_devfs( void ){
 	test.type = FS_CHAR_D;
 	test.find_node		= devfs_find_node;
 	test.read		= null_read;
+	test.pread		= null_pread;
 	test.write		= null_write;
 	devfs_register_device( test );
 }
@@ -112,7 +116,21 @@ int meh_read( file_node_t *node, void *buf, unsigned long size ){
 	return i;
 }
 
+int meh_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
+	int i;
+	char *in = buf;
+	for ( i = offset; i < size; i++ ){
+		in[i] = 'a' + ( i % 26 );
+	}
+	in[i] = 0;
+	return i;
+}
+
 int null_read( file_node_t *node, void *buf, unsigned long size ){
+	return 0;
+}
+
+int null_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
 	return 0;
 }
 

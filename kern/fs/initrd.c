@@ -1,6 +1,6 @@
 #ifndef _kernel_initrd_c
 #define _kernel_initrd_c
-#include <fs/initrd.h>
+#include <initrd.h>
 
 file_node_t  **initrd_nodes;
 file_node_t  *initrd_root;

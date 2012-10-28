@@ -20,6 +20,7 @@ CONFIG_C_FLAGS=-g -DRECOVER_FROM_PANIC
 #CONFIG_C_FLAGS=-g
 
 all: check kernel image
+dev-all: check kernel image docs test
 
 debug:
 	echo $(CROSS_PREFIX)
@@ -55,6 +56,11 @@ cross-cc:
 	@echo -e "[\033[0;34mMaking cross-compiler...\033[0;0m]"
 	@cd cross; $(MAKE) MAKE=$(MAKE) TARGET=$(TARGET)
 	@echo -e "[\033[0;34mdone\033[0;0m]"
+
+docs:
+	@echo -e "[\033[0;34mMaking documentation...\033[0;0m]"
+	@doxygen doc/doc.conf > /dev/null
+	@echo -e "[\033[0;34mdone\033[0;0m]";
 
 clean:
 	@cd kern; $(MAKE) clean

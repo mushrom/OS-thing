@@ -1,6 +1,6 @@
 #ifndef _kernel_fs_c
 #define _kernel_fs_c
-#include <fs/fs.h>
+#include <fs.h>
 
 file_node_t 	*fs_root;
 unsigned long vfs_i_count = 0;

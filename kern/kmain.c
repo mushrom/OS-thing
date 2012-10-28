@@ -1,19 +1,23 @@
-/*======================================================*\ 
- * Mah kernel, v0x00000001
- * Simple machine
- * Props to wiki.osdev.org. ^_^
-\*======================================================*/
+/*! \page kernel Kernel
+ *
+ * The kernel enters at \ref kmain.
+ *
+ * \ref kmain initialises the kernel, initialises the essentials, 
+ * launches a \ref switch_to_usermode "user-mode" thread, then 
+ * sleeps.
+ * 
+ * The \ref syscall.c "system call" interface uses interrupt 0x50 (decimal 80) to enter.
+ */
 
-#include <arch/arch.h>
-#include <sys/skio.h>
-#include <lib/stdint.h>
-#include <lib/stdio.h>
-#include <mem/paging.h>
-#include <mem/alloc.h>
+#include <skio.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <paging.h>
+#include <alloc.h>
 
-#include <fs/fs.h>
-#include <fs/devfs.h>
-#include <fs/initrd.h>
+#include <fs.h>
+#include <devfs.h>
+#include <initrd.h>
 
 /*
 #include <drivers/console.h>
@@ -21,13 +25,18 @@
 #include <drivers/kb.h>
 #include <drivers/ide.h>
 */
-#include <arch/x86/syscall.h>
-#include <arch/x86/task.h>
-#include <kern/ipc.h>
-#include <kern/multiboot.h>
+#include <syscall.h>
+#include <task.h>
+#include <ipc.h>
+#include <multiboot.h>
+#include <timer.h>
+#include <init_tables.h>
+#include <kb.h>
+#include <ide.h>
 
-#include <sys/kshell.h>
-#include <lib/kmacros.h>
+#include <kshell.h>
+#include <kmacros.h>
+#include <common.h>
 
 unsigned int initial_esp;
 unsigned int g_errline = 0;
@@ -104,7 +113,7 @@ void meh( ){
 	exit_thread();
 }
 
-/* Main kernel code */
+/*! \brief Main kernel code */
 void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int magic ){
 	int i;
 	initrd_header_t *initrd = 0;
@@ -120,6 +129,8 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 		kputs( "[\x14-\x17] Multiboot not found...\n" );
 	} else {
 		printf( "[\x12+\x17] Multiboot found, header at 0x%x\n", mboot );
+		if ( mboot->flags & 2 )
+			printf( "    cmd = %s\n", mboot->cmdline );
 		if ( mboot->mods_count ){
 			initrd = (void *)*((int *)mboot->mods_addr);
 			extern unsigned long placement;
@@ -152,7 +163,7 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	
 	//syscall_kputs( "Woot, it works. ^_^\n" );
 
-	for ( i = 0; i < 3; i++ )
+	//for ( i = 0; i < 3; i++ )
 		create_thread( &test );
 	for ( i = 0; i < 3; i++ )
 		create_thread( &meh );

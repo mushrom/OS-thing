@@ -1,6 +1,6 @@
 #ifndef _kernel_stdio_c
 #define _kernel_stdio_c
-#include <lib/stdio.h>
+#include <stdio.h>
 
 int printf( char *format, ... ){
 	int slen = strlen( format ), i = 0, signed_int;

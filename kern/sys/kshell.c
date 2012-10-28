@@ -2,7 +2,7 @@
 #define _kernel_shell_c
 #ifndef NO_DEBUG
 
-#include <sys/kshell.h>
+#include <kshell.h>
 
 #define STR_LIMIT 128 
 #define CMD_LIMIT 64
@@ -16,7 +16,6 @@ int  sh_test( int argc, char **argv );
 int  sh_help( int argc, char **argv );
 int sh_clear( int argc, char **argv );
 int  sh_list( int argc, char **argv );
-//int  sh_dump( int argc, char **argv );
 int sh_write( int argc, char **argv );
 int  sh_read( int argc, char **argv );
 int    sh_cd( int argc, char **argv );
@@ -31,7 +30,6 @@ int   sh_msg( int argc, char **argv );
 int sh_getmsg(int argc, char **argv );
 int  sh_kill( int argc, char **argv );
 int sh_mkdir( int argc, char **argv );
-int   sh_run( int argc, char **argv );
 int sh_uptime(int argc, char **argv );
 
 void init_shell( ){
@@ -42,12 +40,10 @@ void init_shell( ){
 	register_shell_func( "mkdir", sh_mkdir );
 	register_shell_func( "clear", sh_clear );
 	register_shell_func( "debug", sh_debug );
-	//register_shell_func( "dump", sh_dump );
 	register_shell_func( "help", sh_help );
 	register_shell_func( "test", sh_test );
 	register_shell_func( "atoi", sh_atoi );
 	register_shell_func( "sleep", sh_sleep );
-	//register_shell_func( "shell", kshell );
 	register_shell_func( "alloc", sh_alloc );
 	register_shell_func( "reboot", sh_reboot );
 	register_shell_func( "mem", sh_mem );
@@ -55,7 +51,6 @@ void init_shell( ){
 	register_shell_func( "msg", sh_msg );
 	register_shell_func( "kill", sh_kill );
 	register_shell_func( "getmsg", sh_getmsg );
-	register_shell_func( "run", sh_run );
 	register_shell_func( "uptime", sh_uptime );
 }
 
@@ -422,21 +417,6 @@ int sh_uptime( int argc, char **argv ){
 	unsigned long days	= ( hours / 24 );
 
 	printf( "Uptime: %u days, %uh:%um:%us\n", days, hours % 60, minutes % 60, uptime % 60 );
-
-	return 0;
-}
-
-int   sh_run( int argc, char **argv ){
-	if ( argc < 2 ) return 1;
-
-	file_node_t *fp = fs_cwd;
-
-	fp = fs_find_node( fs_cwd, argv[1] );
-	if ( !fp ){
-		printf( "Could not find file\n" );
-		return 1;
-	}
-	load_program( fp );
 
 	return 0;
 }

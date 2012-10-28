@@ -1,6 +1,6 @@
 #ifndef _kernel_devfs_c
 #define _kernel_devfs_c
-#include <fs/devfs.h>
+#include <devfs.h>
 
 file_node_t 	**devfs_nodes;
 file_node_t	*devfs_root;

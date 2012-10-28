@@ -1,6 +1,6 @@
 #ifndef _kernel_alloc_c
 #define _kernel_alloc_c
-#include <mem/alloc.h>
+#include <alloc.h>
 
 extern void *end;
 unsigned long placement = (unsigned long)&end;

@@ -7,13 +7,13 @@ LD         = ld
 OBJCOPY    = objcopy
 STRIP	   = strip
 CFLAGS     = -nostartfiles -nodefaultlibs -nostdlib -fno-builtin \
-		-Wall -DARCH=$(ARCH) -I$(shell pwd)
+		-Wall -DARCH=$(ARCH) -I$(shell pwd)/include
 CONFIG_C_FLAGS = 
 CFLAGS 	  += $(CONFIG_C_FLAGS)
-LDFLAGS    = -T arch/$(ARCH)/linker.ld
+LDFLAGS    = -T kern/linker.ld
 LINKFILES  = $(KNAME).bin 
 
-KFILES	  += $(shell find arch/$(ARCH)/ sys kern lib fs mem -name "*.[c,s]" ) 
+KFILES	  += $(shell find sys kern lib fs mem drivers -name "*.[c,s]" ) 
 KFILES	  += $(shell ls *.c *.s )
 LINKFILES += $(shell echo $(KFILES) | sed "s/\.[c,h,s]/.o/g")
 

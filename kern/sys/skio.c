@@ -1,6 +1,6 @@
 #ifndef _kernel_skio_c
 #define _kernel_skio_c
-#include <sys/skio.h>
+#include <skio.h>
 
 unsigned char input_buf[ IN_BUF_SIZE ];
 unsigned int  input_buf_p = 0, input_buf_i = 0;
@@ -47,5 +47,27 @@ void pause( void ){
 	while ( !got_input );
 }
 
+unsigned char inb( unsigned short port ){
+        unsigned char ret;
+        asm volatile( "inb %1, %0" : "=a"(ret) : "Nd"(port) );
+        return ret;
+}
+
+void outb( unsigned short _port, unsigned char _data ){
+	asm volatile( "outb %1, %0" : : "dN" (_port), "a" (_data));
+}	
+
+void outl( unsigned short _port, unsigned long _data ){
+	asm volatile( "outl %1, %0" : : "dN" (_port), "a" (_data));
+}	
+
+void reboot(){
+	asm volatile( "cli" );
+	unsigned char good = 2;
+	while ( good & 2 )
+		good = inb( 0x64 );
+	outb( 0x64, 0xfe );
+	asm volatile ( "hlt" );
+}
 
 #endif

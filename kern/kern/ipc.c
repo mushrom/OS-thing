@@ -1,6 +1,6 @@
 #ifndef _kernel_ipc_c
 #define _kernel_ipc_c
-#include <kern/ipc.h>
+#include <ipc.h>
 
 char *msg_lookup_table[] = {
 	"status",

@@ -30,6 +30,7 @@ void page_fault_handler( registers_t *regs ){
 		(regs->err_code & 0x8 )?" reserved":""
 	);
 	dump_registers( regs );
+	printf( "pid: %d\n", getpid());
 	end_bad_task( );
 	//PANIC( "page fault" );
 }
@@ -170,24 +171,6 @@ page_table_t *clone_table( page_table_t *src, unsigned long *phys ){
 	printf( "[3] Got here\n" );
 	return table;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 #endif

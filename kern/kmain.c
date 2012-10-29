@@ -26,7 +26,6 @@
 #include <drivers/kb.h>
 #include <drivers/ide.h>
 */
-#include <syscall.h>
 #include <task.h>
 #include <ipc.h>
 #include <multiboot.h>
@@ -38,6 +37,7 @@
 #include <kshell.h>
 #include <kmacros.h>
 #include <common.h>
+#include <syscall.h>
 
 unsigned int initial_esp; 			/**< esp at start, is set to \ref initial_stack */
 unsigned int g_errline = 0;			/**< Error line of last debug, see \ref kmacros.h */
@@ -55,10 +55,10 @@ char *g_errfile = "Debugging disabled";
 void user_daemon( ){
 	switch_to_usermode();
 	char *str = "[\x12+\x17] Usermode is operational.\n";
-	int fp = open( "/dev/tty", 0 );
-	write( fp, str, 33 );
-	close( fp );
-	while( 1 );
+	int fp = syscall_open( "/dev/tty", 0);
+	syscall_write( fp, str, 32 );
+	syscall_close( fp );
+	syscall_exit(0);
 }
 
 /** A test daemon that listens for a message, and executes commands

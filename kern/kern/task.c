@@ -296,9 +296,39 @@ void move_stack( void *new_stack_start, unsigned long size ){
 	memcpy((void *)new_esp, (void *)old_esp, initial_esp - old_esp );
 }
 
-/** \brief Return caller's pid */
+/** \brief Return caller's pid.
+ * Is a system call. */
 int getpid(){
 	return current_task->id;
+}
+
+/** \brief Exit current task.
+ * Is a system call.
+ * @param status Return value of task
+ * @return 0.
+ */
+int exit( char status ){
+	current_task->finished = true;
+	
+	exit_thread();
+	return 0;
+}
+
+/** \brief Execute a file 
+ */
+int fexecve( int fd, char **argv, char **envp ){
+	if ( fd >= current_task->file_count || !current_task->files[fd] )
+		return 1;
+
+	void (*code)() = (void *)kmalloc( current_task->files[fd]->file->size, 0, 0 );
+	int i = syscall_read( fd, code, current_task->files[fd]->file->size );
+	if ( i < 0 )
+		return 1;
+
+	create_thread( code );
+
+	//exit_thread();
+	return 0; /* If we get here, something went horribly wrong... */
 }
 
 /** \brief Dump all running pids to screen */

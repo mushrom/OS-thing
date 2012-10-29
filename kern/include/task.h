@@ -6,6 +6,7 @@
 #include <kmacros.h>
 #include <ipc.h>
 #include <fs.h>
+#include <common.h>
 
 #define KERNEL_STACK_SIZE 4096
 #define MAX_MSGS 32
@@ -32,6 +33,8 @@ typedef struct task {
 	unsigned long sleep;
 	unsigned long status;
 	unsigned long time;
+	bool finished;
+	char ret;
 	struct page_dir *dir;
 	struct task *next;
 	struct task *prev;
@@ -64,6 +67,8 @@ void switch_task();
 void move_stack( void *, unsigned long size );
 
 int getpid( void );
+int exit( char status );
+int fexecve( int fd, char **argv, char **envp );
 
 task_t *get_pid_task( unsigned long pid );
 

@@ -51,6 +51,11 @@ file_node_t *fs_find_path( char *path ){
 		if ( strlen( path ) == 1 )
 			return fp;
 		path++;
+	} else if ( path[0] == '.' ){
+		fp = current_task->cwd;
+		if ( strlen( path ) == 1 )
+			return fp;
+		path++;
 	} else {
 		fp = current_task->cwd;
 	}
@@ -67,12 +72,16 @@ int open( char *path, int flags ){
 	if ( current_task->file_count >= MAX_FILES )
 		return -1;
 	
-	i = current_task->file_count++;	
+	for ( i = 0; i < MAX_FILES; i++ ){
+		if ( current_task->files[i] == 0 )
+			break;
+	}
 	current_task->files[i] = (void *)kmalloc( sizeof( file_descript_t ), 0, 0 );
 	current_task->files[i]->file = fp;
 	current_task->files[i]->r_offset = 0;
 	current_task->files[i]->w_offset = 0;
 	current_task->files[i]->d_offset = 0;
+	current_task->file_count++;	
 	
 	return i;
 }
@@ -80,7 +89,7 @@ int open( char *path, int flags ){
 int close( int fd ){
 	extern task_t *current_task;
 
-	if ( !current_task->file_count || fd >= current_task->file_count )
+	if ( !current_task->file_count || !current_task->files[fd] )
 		return -1;
 
 	current_task->files[fd] = 0;
@@ -148,6 +157,18 @@ struct dirent *readdir( int fd, struct dirp *dir ){
 		return 0;
 
 	return dir->dir[ current_task->files[fd]->d_offset++ ];
+}
+
+int chdir( char *path ){
+	extern task_t *current_task;
+
+	file_node_t *fp = fs_find_path( path );
+	if ( !fp )
+		return -1;
+
+	current_task->cwd = fp;
+
+	return 0;
 }
 
 file_node_t *vfs_find_node( file_node_t *node, char *name ){ DEBUG_HERE

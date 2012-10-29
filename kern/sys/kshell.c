@@ -11,6 +11,7 @@ extern file_node_t *fs_root;
 extern task_t 	   *current_task;
 file_node_t *fs_cwd;
 int cmd_count = 0;
+int cwd = 0;
 shell_cmd_t commands[ CMD_LIMIT ];
 
 int  sh_test( int argc, char **argv );
@@ -32,6 +33,7 @@ int sh_getmsg(int argc, char **argv );
 int  sh_kill( int argc, char **argv );
 int sh_mkdir( int argc, char **argv );
 int sh_uptime(int argc, char **argv );
+int   sh_exec( int argc, char **argv );
 
 void init_shell( ){
 	register_shell_func( "ls", sh_list );
@@ -53,6 +55,7 @@ void init_shell( ){
 	register_shell_func( "kill", sh_kill );
 	register_shell_func( "getmsg", sh_getmsg );
 	register_shell_func( "uptime", sh_uptime );
+	register_shell_func( "exec", sh_exec );
 }
 
 void register_shell_func( char *name, shell_func_t function ){
@@ -206,8 +209,10 @@ int  sh_list( int argc, char **argv ){
 }
 */
 int  sh_list( int argc, char **argv ){
-	if ( argc < 2 ) return 1;
-	int fp = syscall_open( argv[1], 0 ), items = 0;
+	int items = 0;
+	int fp = cwd;
+	if ( argc > 2 );
+		fp = syscall_open( argv[1], 0 );
 	struct dirp *dir = fdopendir( fp );
 	struct dirent *entry;
 
@@ -367,16 +372,27 @@ int sh_mkdir( int argc, char **argv ){
 }
 
 int    sh_cd( int argc, char **argv ){
-	file_node_t *fp;
+	//file_node_t *fp;
+	//int fd;
 	if ( argc > 1 ){
+		syscall_chdir( argv[1] );
+		/*
 		fp = fs_find_path( argv[1] );
-		if ( fp ){
+		fd = syscall_open( argv[1], 0 );
+		if ( fp && fd > -1 ){
 			fs_cwd = current_task->cwd = fp;
+			cwd = fd;
+			syscall_close( fd );
 		} else {
 			printf( "Could not cd\n" );
 		}
+		*/
 	} else {
-		fs_cwd = fs_root;
+		syscall_chdir( "/" );
+		//fd = syscall_open( "/", 0 );
+		//fs_cwd = fs_root;
+		//cwd = fd;
+		//syscall_close( fd );
 	}
 	return 0;
 }
@@ -487,5 +503,20 @@ int sh_uptime( int argc, char **argv ){
 	return 0;
 }
 
+int   sh_exec( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+
+	int fp = open( argv[1], 0 );
+	int ret;
+	if( fp < 0 ){
+		printf( "Could not open file" );
+	}
+
+	ret = syscall_fexecve( fp, 0, 0 );
+	if ( ret > 0 ){
+		printf( "Could not execute file\n" );
+	}
+	return 0;
+}
 #endif
 #endif

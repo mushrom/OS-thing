@@ -8,7 +8,7 @@
 #define DECL_SYSCALL0(fn) int syscall_##fn();
 #define DECL_SYSCALL1(fn, p1) int syscall_##fn(p1);
 #define DECL_SYSCALL2(fn, p1, p2) int syscall_##fn(p1,p2);
-#define DECL_SYSCALL3(fn, p1, p2, p3) int syscall_$$fn(p1,p2,p3);
+#define DECL_SYSCALL3(fn, p1, p2, p3) int syscall_##fn(p1,p2,p3);
 #define DECL_SYSCALL4(fn, p1, p2, p3, p4) int syscall_$$fn(p1,p2,p3,p4);
 #define DECL_SYSCALL5(fn, p1, p2, p3, p4, p5) int syscall_$$fn(p1,p2,p3,p4,p5);
 
@@ -41,13 +41,17 @@ int syscall_##fn(P1 p1, P2 p2, P3 p3){ \
 }
 
 DECL_SYSCALL0(cls)
+DECL_SYSCALL1(exit, char)
 DECL_SYSCALL2(open, char *, int );
 DECL_SYSCALL1(close, int );
 DECL_SYSCALL3(read, int, void *, unsigned long );
 DECL_SYSCALL3(write, int, void *, unsigned long );
+DECL_SYSCALL1(fdreaddir, int)
+DECL_SYSCALL2(readdir, int, struct dirp * );
 DECL_SYSCALL0(getpid)
-//DECL_SYSCALL1(kputchar, char)
+DECL_SYSCALL3(fexecve, int, char **, char ** );
 DECL_SYSCALL1(kputs, char *);
+DECL_SYSCALL1(chdir, char *);
 
 void init_syscalls();
 

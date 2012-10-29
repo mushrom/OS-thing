@@ -6,6 +6,7 @@
 #include <kmacros.h>
 #include <ipc.h>
 #include <fs.h>
+#include <elf.h>
 #include <common.h>
 
 #define KERNEL_STACK_SIZE 4096
@@ -63,12 +64,14 @@ int  get_msg( ipc_msg_t *buf, int blocking );
 
 void dump_pids( void );
 void switch_to_usermode( void );
+void switch_to_usermode_jmp( unsigned long addr );
 void switch_task();
 void move_stack( void *, unsigned long size );
 
 int getpid( void );
 int exit( char status );
 int fexecve( int fd, char **argv, char **envp );
+int load_flat_bin( int fd );
 
 task_t *get_pid_task( unsigned long pid );
 

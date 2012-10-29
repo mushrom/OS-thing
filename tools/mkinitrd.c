@@ -37,6 +37,8 @@ int main( int argc, char *argv[] ){
 			strncpy( file_buf.name, argv[i], MAX_NAME_LEN );
 			file_buf.magic = INITRD_MAGIC;
 			offset += sb.st_size;
+			printf( "Added file \"%s\", \tsize: %d, \toffset: %d\n", 
+				argv[i], file_buf.length, file_buf.offset );
 		
 			fwrite( &file_buf, sizeof( initrd_file_header_t ), 1, out_fp );
 		}
@@ -46,8 +48,13 @@ int main( int argc, char *argv[] ){
 			printf( "Could not generate image, \"%s\" does not exist\n", argv[i] );
 			exit( 1 );
 		}
-		while (( buf = fgetc( in_fp )) != EOF && !feof( in_fp ))
-			fputc( buf, out_fp );
+		j = 0;
+		while ( 1 ){
+			buf = fgetc( in_fp );
+			if ( !feof( in_fp ))
+				fputc( buf, out_fp );
+			else break;
+		}
 	}
 
 	return 0;

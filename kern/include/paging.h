@@ -27,8 +27,13 @@ void set_table_perms( unsigned int, unsigned long, page_dir_t * );
 struct heap *init_heap( unsigned long start, unsigned long size, page_dir_t * );
 unsigned long *get_page( unsigned long, unsigned char, page_dir_t * );
 unsigned long pop_page( void );
-void alloc_page( unsigned long * );
+void alloc_page( unsigned long *, unsigned int permissions );
 void push_page( unsigned long );
+void set_page( unsigned long *address, unsigned long virtual, unsigned int permissions ); 
+
+void map_pages( unsigned long start, unsigned long end, unsigned int permissions, page_dir_t * );
+void free_pages( unsigned long start, unsigned long end, page_dir_t * );
+
 void init_paging();
 
 #endif

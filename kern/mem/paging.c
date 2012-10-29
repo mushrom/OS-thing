@@ -32,20 +32,20 @@ void page_fault_handler( registers_t *regs ){
 	dump_registers( regs );
 	printf( "pid: %d\n", getpid());
 	end_bad_task( );
-	//PANIC( "page fault" );
 }
 
-void alloc_page( unsigned long *address ){
-	*address = pop_page() | PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT;
-	//printf( "Allocated 0x%x\n", address );
+void alloc_page( unsigned long *address, unsigned int permissions ){
+	*address = pop_page() | permissions;
+}
+
+void set_page( unsigned long *address, unsigned long virtual, unsigned int permissions ){
+	*address = virtual | permissions;
 }
 
 void set_table_perms( unsigned int permissions, unsigned long address, page_dir_t *dir ){
 	unsigned long 	high_index = address / 0x1000,
 			low_index  = high_index / 1024;
-	//dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[low_index] & 0xfffff000  );
 	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[low_index] | permissions );
-	//printf( "%0x%x\n", ((unsigned long)dir->tables[ low_index ] | permissions ));
 }
 
 unsigned long *get_page( unsigned long address, unsigned char make, page_dir_t *dir ){
@@ -63,7 +63,7 @@ unsigned long *get_page( unsigned long address, unsigned char make, page_dir_t *
 }
 
 void push_page( unsigned long address ){
-	page_stack[ page_ptr++ ] = address;
+	page_stack[ page_ptr++ ] = address & 0xfffff000;
 }
 
 unsigned long pop_page( void ){
@@ -75,55 +75,60 @@ unsigned long pop_page( void ){
 	return 0;
 }
 
+void map_pages( unsigned long start, unsigned long end, unsigned int permissions, page_dir_t *dir ){
+	unsigned long address = 0, *i;
+	for ( address = start; address < end; address += 0x1000 ){
+		i = get_page( address, 1, dir ), permissions; 
+		if ( *i ){
+			set_page( i, address, permissions );
+		} else {
+			alloc_page( i, permissions );
+		}
+		//printf( "0x%x:0x%x\n", i, *i );
+	}
+
+	unsigned long 	high_index = address / 0x1000,
+			low_index  = high_index / 1024;
+	for ( ; low_index * 0x1000 < end; low_index++ )
+		set_table_perms( permissions, low_index * 0x1000, dir );
+}
+
+void free_pages( unsigned long start, unsigned long end, page_dir_t *dir ){
+	unsigned long address, *i;
+	for ( address = start; address < end; address += 0x1000 ){
+		i = get_page( address, 0, dir );
+		printf( "Free'd page... 0x%x\n", *i );
+		push_page( *i );
+	}
+}
+
 void init_paging( ){
 	unsigned long address	= 0, i;
-	page_dir_t   *kernel_dir= (void *)kmalloc_e( sizeof( page_dir_t ), 1, &address );
-		      kernel_dir->address = (void*)address;
+	page_dir_t   *kernel_dir	  = (void *)kmalloc_e( sizeof( page_dir_t ), 1, &address );
+		      kernel_dir->address = (void *)address;
 	npages			= mem_end / PAGE_SIZE;
-	page_stack 		= (void *)kmalloc_e( npages, 1, 0 );
+	page_stack 	 	= (void *)kmalloc_e( npages, 1, 0 );
 
-	if ( placement & 0xfff ){
-		placement &= 0xfffff000;
-		placement += 0x1000;
-	}
-
-	//memset( kernel_dir, 0, sizeof( page_dir_t ));
-
-	for ( i = mem_end; i + PAGE_SIZE > 0; i -= PAGE_SIZE ){
+	for ( i = mem_end; i + PAGE_SIZE > 0; i -= PAGE_SIZE )
 		push_page( i );
-		//printf( "Pushed page 0x%x\n", i );
-	}
-	for ( i = 1; i < 1024; i++ ){
+
+	for ( i = 1; i < 1024; i++ )
 		kernel_dir->tables[i] = 0;
-	}
-	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE; address += PAGE_SIZE ){ DEBUG_HERE
-		get_page( address, 1, kernel_dir );
-	}
-	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 5; address += 0x1000 ){
-		alloc_page(get_page( address, 1, kernel_dir ));
-	}
-	for ( address = 0; address + PAGE_SIZE < placement + PAGE_SIZE * 5; address += 0x1000 ){
-		set_table_perms( PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, address, kernel_dir );
-	}
-	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE + PAGE_SIZE; address += PAGE_SIZE ){ DEBUG_HERE
-		alloc_page(get_page( address, 1, kernel_dir ));
-	}
-	for ( address = KHEAP_START; address < KHEAP_START + KHEAP_SIZE + PAGE_SIZE; address += PAGE_SIZE ){ DEBUG_HERE
-		set_table_perms( PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, address, kernel_dir );
-	}
+
+	map_pages( 0,		placement + PAGE_SIZE * 5, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
+	map_pages( KHEAP_START, KHEAP_START + KHEAP_SIZE,  PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
+
 	register_interrupt_handler( 0xe, page_fault_handler );
 
 	set_page_dir( kernel_dir );
 
-	//move_stack( 0xe0000000, 2048 );
 	kheap = (void *)init_heap( KHEAP_START, KHEAP_SIZE, kernel_dir );
-	//current_dir = clone_page_dir( kernel_dir );
 	printf( "    %d total pages, %d allocated for kernel (%d free, last at 0x%x)\n", 
 			npages, npages - page_ptr, page_ptr, address );
 
-	//set_page_dir( current_dir );
 }
 
+/*
 page_dir_t *clone_page_dir( page_dir_t *src ){
 	unsigned long phys;
 	unsigned long offset;
@@ -171,6 +176,7 @@ page_table_t *clone_table( page_table_t *src, unsigned long *phys ){
 	printf( "[3] Got here\n" );
 	return table;
 }
+*/
 
 
 #endif

@@ -513,7 +513,7 @@ int   sh_exec( int argc, char **argv ){
 	}
 
 	ret = syscall_fexecve( fp, 0, 0 );
-	if ( ret > 0 ){
+	if ( ret < 0 ){
 		printf( "Could not execute file\n" );
 	}
 	return 0;

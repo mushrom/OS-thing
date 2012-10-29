@@ -272,6 +272,7 @@ task_t *get_pid_task( unsigned long pid ){
 	return 0;
 }
 
+/*
 void move_stack( void *new_stack_start, unsigned long size ){
 	unsigned long i;
 	for ( i = (unsigned long)new_stack_start; i >= (unsigned long)new_stack_start - size; i -= 0x1000 ){
@@ -286,7 +287,7 @@ void move_stack( void *new_stack_start, unsigned long size ){
 	//memcpy((char *)0xe0000000 - 0x1000, "test", 5 );
 	printf( "    Woot, it didn't break. :D\n", 0xe0000000 - 0x1000 );
 
-	unsigned long old_esp, old_ebp, offset, new_esp /*,new_ebp*/;
+	unsigned long old_esp, old_ebp, offset, new_esp ,new_ebp;
 	asm volatile( "mov %%esp, %0" : "=r" (old_esp));
 	asm volatile( "mov %%ebp, %0" : "=r" (old_ebp));
 
@@ -295,6 +296,7 @@ void move_stack( void *new_stack_start, unsigned long size ){
 	//new_ebp = old_ebp + offset;
 	memcpy((void *)new_esp, (void *)old_esp, initial_esp - old_esp );
 }
+*/
 
 /** \brief Return caller's pid.
  * Is a system call. */
@@ -315,21 +317,44 @@ int exit( char status ){
 }
 
 /** \brief Execute a file 
+ * @param fd The file descriptor of the file to execute
+ * @param argv The arguments for the program
+ * @param envp The environment variables for the program
+ * @return nothing if successful, -1 otherwise
  */
 int fexecve( int fd, char **argv, char **envp ){
 	if ( fd >= current_task->file_count || !current_task->files[fd] )
 		return 1;
 
-	void (*code)() = (void *)kmalloc( current_task->files[fd]->file->size, 0, 0 );
-	int i = syscall_read( fd, code, current_task->files[fd]->file->size );
-	if ( i < 0 )
-		return 1;
-
-	create_thread( code );
+	int ret = load_elf( fd );
+	if ( ret ){
+		ret = load_flat_bin( fd );
+	}
 
 	//exit_thread();
-	return 0; /* If we get here, something went horribly wrong... */
+
+	return ret; /* If we get here, something went horribly wrong... */
 }
+
+int load_flat_bin( int fd ){
+	char flat_magic[4] = { 'F', 'L', 'A', 'T' };
+	char *buf;
+	void (*code)() = (void *)kmalloc( current_task->files[fd]->file->size, 0, 0 );
+	int i = read( fd, code, current_task->files[fd]->file->size );
+	int j;
+	if ( i < 4 )
+		return -1;
+
+	for ( j = 0, buf = (char *)code; j < 4 && j < i; j++ ){
+		if ( buf[j] != flat_magic[j] )
+			return -1;
+	}
+
+	create_thread( code + 4 );
+
+	return 0;
+}
+	
 
 /** \brief Dump all running pids to screen */
 void dump_pids( void ){
@@ -378,14 +403,38 @@ void switch_to_usermode( void ){
 		pushl $0x23;	\
 		pushl %eax;	\
 		pushf;		\
-		pop %eax;	\
-		or $0x200, %eax;\
-		push %eax;	\
+		popl %eax;	\
+		orl $0x200, %eax;\
+		pushl %eax;	\
 		pushl $0x1b;	\
-		push $1f;	\
+		pushl $1f;	\
 		iret;		\
 		1:		\
 	" );
+}
+
+void switch_to_usermode_jmp( unsigned long addr ){
+	set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
+
+	asm volatile( "		\
+		cli;		\
+		mov $0x23, %%ax;\
+		mov %%ax, %%ds;	\
+		mov %%ax, %%es;	\
+		mov %%ax, %%fs;	\
+		mov %%ax, %%gs;	\
+				\
+		mov %%esp, %%eax;\
+		pushl $0x23;	\
+		pushl %%eax;	\
+		pushf;		\
+		popl %%eax;	\
+		orl $0x200, %%eax;\
+		pushl %%eax;	\
+		pushl $0x1b;	\
+		pushl %0;	\
+		iret;		\
+	":: "m"(addr));
 }
 
 #endif

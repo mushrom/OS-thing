@@ -185,5 +185,6 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	create_thread( &main_daemon );
 	create_thread( &user_daemon );
 	create_thread( &kshell );
+	//switch_to_usermode_jmp((unsigned long)&user_daemon );
 	sleep_thread( 0xffffffff );
 }

@@ -12,5 +12,6 @@ void init_timer( uint32_t );
 void wait( uint32_t );
 void usleep( uint32_t );
 unsigned long get_uptime( void );
+unsigned long get_tick( void );
 
 #endif

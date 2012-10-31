@@ -17,6 +17,11 @@ void set_page_dir( page_dir_t *dir ){
 	asm volatile( "mov %%cr0, %0": "=r"(cr0));
 	asm volatile( "mov %0, %%cr0":: "r"(cr0 | 0x80000000));
 }
+
+void flush_tlb( void ){
+	asm volatile( "mov %cr3, %eax" );
+	asm volatile( "mov %eax, %cr3" );
+}
 	
 void page_fault_handler( registers_t *regs ){
 	unsigned long fault_addr;
@@ -34,33 +39,6 @@ void page_fault_handler( registers_t *regs ){
 	end_bad_task( );
 }
 
-void alloc_page( unsigned long *address, unsigned int permissions ){
-	*address = pop_page() | permissions;
-}
-
-void set_page( unsigned long *address, unsigned long virtual, unsigned int permissions ){
-	*address = virtual | permissions;
-}
-
-void set_table_perms( unsigned int permissions, unsigned long address, page_dir_t *dir ){
-	unsigned long 	high_index = address / 0x1000,
-			low_index  = high_index / 1024;
-	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[low_index] | permissions );
-}
-
-unsigned long *get_page( unsigned long address, unsigned char make, page_dir_t *dir ){
-	unsigned long 	high_index = address / 0x1000,
-			low_index  = high_index / 1024;
-
-	if ( !dir->tables[ low_index ] && make ){
-		unsigned long tmp;
-		dir->tables[ low_index ] = (void *)kmalloc( sizeof( page_table_t ), 1, &tmp );
-		memset( dir->tables[low_index], 0, PAGE_SIZE );
-		dir->table_addr[ low_index ] = tmp | PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT;
-	} 
-	
-	return &dir->tables[ low_index ]->address[ high_index % 1024 ];
-}
 
 void push_page( unsigned long address ){
 	page_stack[ page_ptr++ ] = address & 0xfffff000;
@@ -75,31 +53,51 @@ unsigned long pop_page( void ){
 	return 0;
 }
 
-void map_pages( unsigned long start, unsigned long end, unsigned int permissions, page_dir_t *dir ){
-	unsigned long address = 0, *i;
-	for ( address = start; address < end; address += 0x1000 ){
-		i = get_page( address, 1, dir ), permissions; 
-		if ( *i ){
-			set_page( i, address, permissions );
-		} else {
-			alloc_page( i, permissions );
-		}
-		//printf( "0x%x:0x%x\n", i, *i );
-	}
+void set_table_perms( unsigned int permissions, unsigned long address, page_dir_t *dir ){
+	unsigned long high_index = address / 0x1000,
+			low_index = high_index / 1024;
 
-	unsigned long 	high_index = address / 0x1000,
-			low_index  = high_index / 1024;
-	for ( ; low_index * 0x1000 < end; low_index++ )
-		set_table_perms( permissions, low_index * 0x1000, dir );
+	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] | permissions );
+}
+
+void map_page( unsigned long address, unsigned int permissions, page_dir_t *dir ){
+	unsigned long 	low_index = address >> 22,
+			high_index  = address >> 12 & 0x3ff,
+			temp = 0;
+
+	if ( !dir->tables[ low_index ] ){
+		dir->tables[ low_index ] = (void *)kmalloc( sizeof( page_table_t ), 1, &temp );
+		memset( dir->tables[ low_index ], 0, PAGE_SIZE );
+		dir->table_addr[ low_index ] = temp | permissions;
+	}
+	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] & 0xfffff000);
+	dir->tables[ low_index ]->address[ high_index % 1024 ] = pop_page() | permissions;
+
+	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] | permissions);
+	
+}
+
+void free_page( unsigned long address, page_dir_t *dir ){
+	unsigned long 	low_index = address >> 22,
+			high_index  = address >> 12 & 0x3ff,
+			temp = 0;
+
+	if ( !dir->tables[ low_index ] )
+		return;
+
+	dir->tables[ low_index ]->address[ high_index % 1024 ] = 0;
+}
+
+void map_pages( unsigned long start, unsigned long end, unsigned int permissions, page_dir_t *dir ){
+	unsigned long address = 0;
+	for ( address = start; address < end; address += 0x1000 )
+		map_page( address, permissions, dir );
 }
 
 void free_pages( unsigned long start, unsigned long end, page_dir_t *dir ){
-	unsigned long address, *i;
-	for ( address = start; address < end; address += 0x1000 ){
-		i = get_page( address, 0, dir );
-		printf( "Free'd page... 0x%x\n", *i );
-		push_page( *i );
-	}
+	unsigned long address = 0;
+	for ( address = start; address < end; address += 0x1000 )
+		free_page( address, dir );
 }
 
 void init_paging( ){
@@ -115,68 +113,23 @@ void init_paging( ){
 	for ( i = 1; i < 1024; i++ )
 		kernel_dir->tables[i] = 0;
 
+	/* "PAGE_SIZE * 5" is to provide 20kb of heap for kmalloc_e */
 	map_pages( 0,		placement + PAGE_SIZE * 5, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
 	map_pages( KHEAP_START, KHEAP_START + KHEAP_SIZE,  PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
 
 	register_interrupt_handler( 0xe, page_fault_handler );
-
+	//current_dir = clone_page_dir( kernel_dir );
+	kernel_dir->address = (unsigned long)kernel_dir->address | 7;
 	set_page_dir( kernel_dir );
 
 	kheap = (void *)init_heap( KHEAP_START, KHEAP_SIZE, kernel_dir );
 	printf( "    %d total pages, %d allocated for kernel (%d free, last at 0x%x)\n", 
 			npages, npages - page_ptr, page_ptr, address );
 
+	map_pages( 0xa0000000,	0xa000a000, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
+	flush_tlb();
+
+	//memcpy((void *)0xa0001000, "test", 5 );
 }
-
-/*
-page_dir_t *clone_page_dir( page_dir_t *src ){
-	unsigned long phys;
-	unsigned long offset;
-	unsigned long i;
-
-	page_dir_t *dir = (page_dir_t *)kmalloc( sizeof( page_dir_t ), 1, &phys );
-	memset( dir, 0, sizeof( page_dir_t ));
-
-	offset = (unsigned long)dir->table_addr - (unsigned long)dir;
-	dir->address = (void *)phys + offset;
-
-	printf( "[1] Got here\n" );
-	for ( i = 0; i < 1024; i++ ){
-		if ( src->tables[i] ){
-			if ( kernel_dir->tables[i] == src->tables[i] ){
-				printf( "[1.1] Got here\n" );
-				dir->tables[i] = src->tables[i];
-				dir->table_addr[i] = src->table_addr[i];
-			} else {
-				dir->tables[i] = clone_table( src->tables[i], &phys );
-				dir->table_addr[i] = phys | PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT;
-			}
-			//set_table_perms( PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, (unsigned long)dir->tables[i], current_dir );
-		}
-	}
-	printf( "[4] Got here\n" );
-	return dir;
-}
-
-page_table_t *clone_table( page_table_t *src, unsigned long *phys ){
-	int i;
-	page_table_t *table = (page_table_t *)kmalloc( sizeof( page_table_t ), 1, phys );
-	memset( table, 0, sizeof( page_dir_t ));
-
-	printf( "[2] Got here\n" );
-	for ( i = 0; i < 1024; i++ ){
-		if ( src->address[i] ){
-			alloc_page( &table->address[i] );
-			printf( "[2.1] Got here\n" );
-			table->address[i] |= src->address[i] & 31;
-			copy_page_phys( src->address[i], table->address[i] );
-			printf( "[2.2] Got here\n" );
-		}
-	}
-	printf( "[3] Got here\n" );
-	return table;
-}
-*/
-
 
 #endif

@@ -1,7 +1,7 @@
 MAKE=gmake
 PREFIX=$(shell pwd)
 TARGET=i586-elf
-BINUTILS=binutils-2.22
+BINUTILS=binutils-2.23
 GCC=gcc-4.7.2
 GMP=gmp-5.0.5
 MPC=mpc-1.0.1
@@ -26,14 +26,14 @@ check:
 	fi
 
 download: 
-	@if [ ! -e $(BINUTILS).tar.bz2 ]; then \
+	@if [ ! -e $(BINUTILS).tar.gz ]; then \
 		echo -e "[\033[0;32mDownloading binutils\033[0;0m]";\
-		wget http://ftp.gnu.org/gnu/binutils/$(BINUTILS).tar.bz2; \
+		wget http://ftp.gnu.org/gnu/binutils/$(BINUTILS).tar.gz; \
 		echo -e "[\033[0;32mdone\033[0;0m]";\
 	fi
-	@if [ ! -e $(GMP).tar.bz2 ]; then \
+	@if [ ! -e $(GMP).tar.xz ]; then \
 		echo -e "[\033[0;32mDownloading gmp\033[0;0m]";\
-		wget http://ftp.gnu.org/gnu/gmp/$(GMP).tar.bz2; \
+		wget http://ftp.gnu.org/gnu/gmp/$(GMP).tar.gz; \
 		echo -e "[\033[0;32mdone\033[0;0m]";\
 	fi
 	@if [ ! -e $(MPC).tar.gz ]; then \
@@ -41,49 +41,49 @@ download:
 		wget http://ftp.gnu.org/gnu/mpc/$(MPC).tar.gz; \
 		echo -e "[\033[0;32mdone\033[0;0m]";\
 	fi
-	@if [ ! -e $(MPFR).tar.bz2 ]; then \
+	@if [ ! -e $(MPFR).tar.gz ]; then \
 		echo -e "[\033[0;32mDownloading gmp\033[0;0m]";\
-		wget http://ftp.gnu.org/gnu/mpfr/$(MPFR).tar.bz2; \
+		wget http://ftp.gnu.org/gnu/mpfr/$(MPFR).tar.gz; \
 		echo -e "[\033[0;32mdone\033[0;0m]";\
 	fi
-	@if [ ! -e $(GCC).tar.bz2 ]; then \
+	@if [ ! -e $(GCC).tar.gz ]; then \
 		echo -e "[\033[0;32mDownloading gcc\033[0;0m]";\
-		wget http://ftp.gnu.org/gnu/gcc/gcc-4.7.2/$(GCC).tar.bz2; \
+		wget http://ftp.gnu.org/gnu/gcc/gcc-4.7.2/$(GCC).tar.gz; \
 		echo -e "[\033[0;32mdone\033[0;0m]";\
 	fi
 
 binutils:
 	@echo -e "[\033[0;32mMaking $(BINUTILS)\033[0;0m]";
 	@echo Extracting...
-	@tar xf $(BINUTILS).tar.bz2
+	@tar xf $(BINUTILS).tar.*
 	@cd $(BINUTILS); ./configure --prefix=$(PREFIX) --target=$(TARGET) --disable-nls; \
 	$(MAKE); $(MAKE) install;
 
 gmp:
 	@echo -e "[\033[0;32mMaking $(GMP)\033[0;0m]"
 	@echo Extracting...
-	@tar xf $(GMP).tar.bz2
+	@tar xf $(GMP).tar.*
 	@cd $(GMP); ./configure --prefix=$(PREFIX); \
 	$(MAKE); $(MAKE) install;
 
 mpc:
 	@echo -e "[\033[0;32mMaking $(MPC)\033[0;0m]";
 	@echo Extracting...
-	@tar xf $(MPC).tar.gz
+	@tar xf $(MPC).tar.*
 	@cd $(MPC); ./configure --prefix=$(PREFIX) --with-gmp=$(PREFIX); --with-mpfr=$(PREFIX)\
 	$(MAKE); $(MAKE) install;
 
 mpfr:
 	@echo -e "[\033[0;32mMaking $(MPFR)\033[0;0m]";
 	@echo Extracting...
-	@tar xf $(MPFR).tar.bz2
+	@tar xf $(MPFR).tar.*
 	@cd $(MPFR); ./configure --prefix=$(PREFIX) --with-gmp=$(PREFIX);\
 	$(MAKE); $(MAKE) install;
 
 gcc:
 	@echo -e "[\033[0;32mMaking $(GCC)\033[0;0m]";
 	@echo Extracting...
-	@tar xf $(GCC).tar.bz2
+	@tar xf $(GCC).tar.*
 	@cd $(GCC); export PATH="$$PATH:$(PREFIX)";\
 	./configure --prefix=$(PREFIX) --target=$(TARGET) --disable-nls --enable-languages=c --without-headers --with-gmp=$(PREFIX) --with-mpc=$(PREFIX) --with-mpfr=$(PREFIX) --enable-obsolete;\
 	$(MAKE); $(MAKE) install;

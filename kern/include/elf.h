@@ -135,6 +135,36 @@ typedef struct {
 	Elf32_Word	sh_entsize;
 } Elf32_Shdr;
 
+enum {
+	SHF_WRITE,
+	SHF_ALLOC,
+	SHF_EXECINSTR,
+	SHF_MASKPROC
+};
+
+typedef struct {
+	Elf32_Word	p_type;
+	Elf32_Off	p_offset;
+	Elf32_Addr	p_vaddr;
+	Elf32_Addr	p_paddr;
+	Elf32_Word	p_filesz;
+	Elf32_Word	p_memsz;
+	Elf32_Word	p_flags;
+	Elf32_Word	p_align;
+} Elf32_Phdr;
+
+enum {
+	PT_NULL,
+	PT_LOAD,
+	PT_DYNAMIC,
+	PT_INTERP,
+	PT_NOTE,
+	PT_SHLIB,
+	PT_PHDR,
+	PT_LOPROC =	0x70000000,
+	PT_HIPROC =	0x7fffffff
+};
+
 int load_elf( int fd );
 
 #endif

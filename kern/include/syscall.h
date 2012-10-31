@@ -46,7 +46,7 @@ DECL_SYSCALL2(open, char *, int );
 DECL_SYSCALL1(close, int );
 DECL_SYSCALL3(read, int, void *, unsigned long );
 DECL_SYSCALL3(write, int, void *, unsigned long );
-DECL_SYSCALL1(fdreaddir, int)
+DECL_SYSCALL1(fdopendir, int)
 DECL_SYSCALL2(readdir, int, struct dirp * );
 DECL_SYSCALL0(getpid)
 DECL_SYSCALL3(fexecve, int, char **, char ** );

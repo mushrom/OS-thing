@@ -133,9 +133,9 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 		}
 	}
 
+/*
 	char *part_table = (char *)kmalloc( 512, 0, 0 );
 	memset( part_table, 0, 512 );
-	/* "i < 2" for testing only, switch 2 to 4 once atapi is finished */
 	for ( i = 0; i < 4; i++ ){
 		if ( ide_devices[i].reserved ){
 			ide_read_sectors( i, 1, 0, 0, (unsigned long)part_table );
@@ -148,6 +148,7 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 			memset( part_table, 0, 512 );
 		}
 	}
+*/
 }
 
 int ide_driver_read( file_node_t *node, void *buf, unsigned long size ){
@@ -202,10 +203,10 @@ int ide_driver_pread( file_node_t *node, void *buf, unsigned long size, unsigned
 	unsigned int  i = 0, j = 0, l = 0, k = 0, device = node->dev_id;
 	int ret = 0;
 
-	printf( "[debug] reading %u sectors\n", sectors );
+	//printf( "[debug] reading %u sectors\n", sectors );
 
 	for ( i = soffset; i < sectors + soffset + ( offset % 512 > 0 ) && !ret; i++ ){
-		printf( "[debug] Got sector %d\n", i );
+		//printf( "[debug] Got sector %d\n", i );
 		ret = ide_read_sectors( device, 1, i, 0, (unsigned int)read_buf );
 		if ( !ret ){
 			if ( i == soffset )
@@ -230,7 +231,7 @@ int ide_driver_pwrite( file_node_t *node, void *buf, unsigned long size, unsigne
 	unsigned int  i = 0, j = 0, l = 0, k = 0, device = node->dev_id;
 	int ret = 0;
 
-	printf( "[debug] writing %u sectors\n", sectors );
+	//printf( "[debug] writing %u sectors\n", sectors );
 
 	for ( i = soffset; i < sectors + soffset + ( offset % 512 > 0 ) && !ret; i++ ){
 		printf( "[debug] Got sector %d\n", i );

@@ -29,6 +29,10 @@ unsigned long get_uptime( void ){
 	return tick/current_freq;
 }
 
+unsigned long get_tick( void ){
+	return tick;
+}
+
 void wait( uint32_t seconds ){
 	uint32_t limit = seconds * current_freq;
 	unsigned long mark;

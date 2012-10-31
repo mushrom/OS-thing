@@ -66,16 +66,18 @@ void user_daemon( ){
  */
 void main_daemon( ){
 	ipc_msg_t msg;
-	int ret;
+	int ret, meh;
 	while ( 1 ){
 		ret = get_msg( &msg, MSG_BLOCK );
 		if ( ret == 0 ){
+			meh = 0xfffffff;
 			switch ( msg.msg_type ){
 				case MSG_EXIT:
 					reboot();
 					break;
 				case MSG_STATUS:
 					printf( "Main daemon, how can I help you?\n" );
+					while( meh-- );
 					break;
 			}
 		}
@@ -87,7 +89,8 @@ void test( ){
 	while ( 1 ){
 		//printf( "pid %d, calling in\n", getpid( ));
 		sleep_thread( 1000 );
-		switch_task();
+		//while( 1 );
+		//switch_task();
 	}
 	exit_thread();
 }
@@ -114,10 +117,17 @@ void meh( ){
 			if ( msg.msg_type == 123 )
 				exit_thread();
 
-			if ( msg.msg_type == 234 )
-				ret = ret/0;
+			if ( msg.msg_type == 234 ){
+				int fd = open( "/init/blarg", 0 );
+				if ( fd > -1 ){
+					printf( "Testing...(%d\n)\n", fd );
+					fexecve( fd, 0, 0 );
+				}
+				close( fd );
+				printf( "Complete\n" );
+			}
 		} else {
-			sleep_thread( 3000 );
+			//sleep_thread( 1 );
 		}
 	}
 	exit_thread();
@@ -154,10 +164,10 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 		}
 	}
 
-	init_tables(); 		kputs( "[\x12+\x17] initialised tables\n" );
-	init_paging(); 		printf( "[\x12+\x17] initialised paging\n" );
+	init_tables(); 		printf( "[\x12+\x17] initialised tables\n" );
 	init_timer(TIMER_FREQ);	printf( "[\x12+\x17] Initialised timer to %uhz\n", TIMER_FREQ );
 	asm volatile ( "sti" );
+	init_paging(); 		printf( "[\x12+\x17] initialised paging\n" );
 	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
 	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
 	if ( initrd ){
@@ -165,8 +175,8 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 		printf( "[\x12+\x17] initialised initrd\n" );
 	}
 
-	init_console();
 	init_keyboard(); 	//printf( "[\x12+\x17] initialised keyboard\n" );
+	init_console();
 	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
 				printf( "[\x12+\x17] initialised ide\n" );
 	init_syscalls(); 	syscall_kputs( "[\x12+\x17] Initialised syscalls\n" );
@@ -174,10 +184,8 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	init_shell();
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 	con_scroll_offset = 0;
-	
-	//syscall_kputs( "Woot, it works. ^_^\n" );
 
-	//for ( i = 0; i < 3; i++ )
+	//for ( i = 0; i < 100; i++ )
 		create_thread( &test );
 	for ( i = 0; i < 3; i++ )
 		create_thread( &meh );
@@ -185,6 +193,7 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	create_thread( &main_daemon );
 	create_thread( &user_daemon );
 	create_thread( &kshell );
+	create_thread( &test );
 	//switch_to_usermode_jmp((unsigned long)&user_daemon );
 	sleep_thread( 0xffffffff );
 }

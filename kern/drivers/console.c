@@ -28,7 +28,7 @@ void move_cursor( ){
 
 }
 
-void _kcheck_scroll( void ){
+void kcheck_scroll( void ){
 	unsigned short int i;
 	if ( cur_y_pos > 24 ){
 		for ( i = con_scroll_offset; i < 24; i++ ){
@@ -66,7 +66,7 @@ void kputchar( unsigned char input ){
 		set_color( input - 0x10 );
 	}
 	move_cursor();
-	_kcheck_scroll();
+	kcheck_scroll();
 }
 
 void kputs( char *input ){

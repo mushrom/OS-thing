@@ -135,7 +135,7 @@ int initrd_pread( file_node_t *node, void *buf, unsigned long size, unsigned lon
 	unsigned int i, inode = node->inode;
 
 	for ( i = offset; i < size + offset && i < node->size; i++ ){
-		output[i] = data[ data_offset + files[inode-1].offset + i ];
+		output[i-offset] = data[ data_offset + files[inode-1].offset + i ];
 	}
 	return i - offset;
 }

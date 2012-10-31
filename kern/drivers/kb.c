@@ -92,6 +92,10 @@ void init_keyboard( void ){
 
 	devfs_register_device( kb_driver );
 	register_interrupt_handler( IRQ1, &keyboard_handler );
+	/** Kludge alert; for some reason the keyboard will occassionally
+ 	 * (read: frequently) not interrupt if the handler isn't called immediately.
+ 	 * I have no idea why, but if it works... */
+	keyboard_handler( 0 );
 }
 
 #endif

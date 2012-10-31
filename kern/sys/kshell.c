@@ -9,9 +9,9 @@
 
 extern file_node_t *fs_root;
 extern task_t 	   *current_task;
-file_node_t *fs_cwd;
+//file_node_t *fs_cwd;
 int cmd_count = 0;
-int cwd = 0;
+//int cwd = 0;
 shell_cmd_t commands[ CMD_LIMIT ];
 
 int  sh_test( int argc, char **argv );
@@ -34,13 +34,14 @@ int  sh_kill( int argc, char **argv );
 int sh_mkdir( int argc, char **argv );
 int sh_uptime(int argc, char **argv );
 int   sh_exec( int argc, char **argv );
+int    sh_cat( int argc, char **argv );
 
 void init_shell( ){
 	register_shell_func( "ls", sh_list );
 	register_shell_func( "cd", sh_cd );
 	register_shell_func( "write", sh_write );
 	register_shell_func( "read", sh_read );
-	register_shell_func( "mkdir", sh_mkdir );
+	//register_shell_func( "mkdir", sh_mkdir );
 	register_shell_func( "clear", sh_clear );
 	register_shell_func( "debug", sh_debug );
 	register_shell_func( "help", sh_help );
@@ -56,6 +57,7 @@ void init_shell( ){
 	register_shell_func( "getmsg", sh_getmsg );
 	register_shell_func( "uptime", sh_uptime );
 	register_shell_func( "exec", sh_exec );
+	register_shell_func( "cat", sh_cat );
 }
 
 void register_shell_func( char *name, shell_func_t function ){
@@ -66,8 +68,8 @@ void register_shell_func( char *name, shell_func_t function ){
 
 void kshell( void ){
 	char *cmd, **args, *PS1 = "[\x12shell\x17] $ ";
-	unsigned char buf;
-	fs_cwd = fs_root;
+	unsigned char buf = 0;
+	//fs_cwd = fs_root;
 	int running = 1, i = 0, j = 0, arg_no = 0, cmd_found = 0;
 
 	cmd  = (void *)kmalloc( STR_LIMIT, 0, 0 );
@@ -81,6 +83,7 @@ void kshell( void ){
 		pause();
 		cmd_found = 0;
 		j = 0;
+		buf = 0;
 		for ( i = 0; ( buf = get_in_char()) != '\n' && i < STR_LIMIT; ){
 			if ( buf == '\b' ){
 				cmd[i] = 0;
@@ -121,8 +124,10 @@ void kshell( void ){
 				cmd_found = 1;
 			}
 		}
-		if ( strcmp( args[0], "exit" ) == 0 )
+		if ( strcmp( args[0], "exit" ) == 0 ){
+			exit_thread();
 			return;
+		}
 		if ( !cmd_found && strlen( args[0] )){
 			printf( "Unknown command: \"%s\"\n", args[0] );
 		}
@@ -159,60 +164,13 @@ int sh_clear( int argc, char **argv ){
 	return 0;
 }
 
-/*
 int  sh_list( int argc, char **argv ){
-	file_node_t *fp = fs_cwd, *file_thing;
-	struct dirp *dir;
-	struct dirent *entry;
-	struct vfs_stat sb;
-	int items = 0;
-	char color = 0x17;
+	int items = 0, fp;
+	char *to_list = ".";
+	if ( argc > 1 )
+		to_list = argv[1];
 
-	if ( !fs_cwd )
-		fp = fs_cwd = fs_root;
-
-	if ( argc > 1 ){
-		fp = fs_find_node( fs_cwd, argv[1] );
-		if ( !fp ){
-			printf( "Could not find file\n" );
-			return -1;
-		}
-	}
-
-	dir = fs_opendir( fp );
-	if ( dir ){
-		while (( entry = fs_readdir( dir ))){
-			file_thing = fs_find_node( fp, (char *)entry->name );
-			fs_stat( file_thing, &sb );
-
-			if ( sb.type == FS_DIR )
-				color = 0x19;
-			if ( sb.type == FS_CHAR_D )
-				color = 0x15;
-			if ( sb.type == FS_BLOCK_D )
-				color = 0x14;
-
-			printf( "%c%s\x17\t", color, entry->name );
-			items++;
-			if ( items % 8 == 0 )
-				printf( "\n" );
-			color = 0x17;
-		}
-		printf( "\n" );
-		fs_closedir( fp );
-		//printf( "%d items\n", items );
-	} else {
-		printf( "Could not open directory\n" );
-	}
-
-	return 0;
-}
-*/
-int  sh_list( int argc, char **argv ){
-	int items = 0;
-	int fp = cwd;
-	if ( argc > 2 );
-		fp = syscall_open( argv[1], 0 );
+	fp = syscall_open( to_list, 0 );
 	struct dirp *dir = fdopendir( fp );
 	struct dirent *entry;
 
@@ -231,38 +189,6 @@ int  sh_list( int argc, char **argv ){
 	return 0;
 }
 
-/*
-int sh_write( int argc, char **argv ){
-	file_node_t *fp = fs_cwd;
-	int bytes_written = 0;
-	int offset = 0;
-
-	if ( argc < 3 ){
-		printf( "Need arguments!\n" );
-		return 0;
-	}
-	if ( argc > 3 )
-		offset = atoi( argv[3] );
-
-	fs_open( fp, argv[1], 0777 );
-	fp = fs_find_node( fp, argv[1] );
-	if ( fp ){
-		if ( offset )
-			bytes_written = fs_pwrite( fp, argv[2], strlen( argv[2] ) + 1, offset );
-		else
-			bytes_written = fs_write( fp, argv[2], strlen( argv[2] ) + 1);
-	} else {
-		bytes_written = -1;
-	}
-	if ( bytes_written == -1 ){
-		printf( "Could not write to file\n" );
-	} else {
-		printf( "Wrote %d bytes\n", bytes_written );
-	}
-
-	return 0;
-}
-*/
 int sh_write( int argc, char **argv ){
 	if ( argc < 3 ) return 1;
 	int fp = syscall_open( argv[1], 0 ), bytes = 0;
@@ -282,51 +208,6 @@ int sh_write( int argc, char **argv ){
 	return 0;
 }
 
-/*
-int  sh_read( int argc, char **argv ){
-	file_node_t *fp = fs_cwd;
-	char *buf = (void *)kmalloc( 512, 0, 0 );
-	int size = 512;
-	int bytes_read = 0;
-	unsigned long offset = 0;
-	int i = 0;
-
-	if ( argc < 2 ){
-		printf( "Need arguments!\n" );
-		return 0;
-	}
-	if ( argc > 2 )
-		size = atoi( argv[2] );
-
-	if ( argc > 3 )
-		offset = atoi( argv[3] );
-
-	//fs_open( fp, argv[1], 0777 );
-	fp = fs_find_node( fp, argv[1] );
-	if ( fp ){
-		if ( offset )
-			bytes_read = fs_pread( fp, buf, size, offset );
-		else
-			bytes_read = fs_read( fp, buf, size );
-	} else {
-		printf( "Could not find file\n" );
-		return 0;
-	}
-	if ( bytes_read == -1 ){
-		printf( "Could not read file\n" );
-	} else {
-		printf( "read %d bytes\n", bytes_read );
-		if ( bytes_read ){
-			for ( i = 0; i < bytes_read; i++ )
-				printf( "%c", buf[i] );
-			printf( "\n" );
-		}
-	}
-	memset( buf, 0, 512 );
-	
-	return 0;
-}
-*/
 int  sh_read( int argc, char **argv ){
 	if ( argc < 2 ) return 1;
 	int fp = syscall_open( argv[1], 0 ), bytes = 0;
@@ -356,9 +237,10 @@ int  sh_dump( int argc, char **argv ){
 }
 */
 
+/*
 int sh_mkdir( int argc, char **argv ){
 	if ( argc < 2 ) return 1;
-	file_node_t *fp = fs_cwd;
+	//file_node_t *fp = fs_cwd;
 
 	fp = fs_find_node( fs_cwd, argv[1] );
 	if ( fp ) {
@@ -370,29 +252,15 @@ int sh_mkdir( int argc, char **argv ){
 		printf( "Could not make directory.\n" );
 	return ret;
 }
+*/
 
 int    sh_cd( int argc, char **argv ){
 	//file_node_t *fp;
 	//int fd;
 	if ( argc > 1 ){
 		syscall_chdir( argv[1] );
-		/*
-		fp = fs_find_path( argv[1] );
-		fd = syscall_open( argv[1], 0 );
-		if ( fp && fd > -1 ){
-			fs_cwd = current_task->cwd = fp;
-			cwd = fd;
-			syscall_close( fd );
-		} else {
-			printf( "Could not cd\n" );
-		}
-		*/
 	} else {
 		syscall_chdir( "/" );
-		//fd = syscall_open( "/", 0 );
-		//fs_cwd = fs_root;
-		//cwd = fd;
-		//syscall_close( fd );
 	}
 	return 0;
 }
@@ -509,13 +377,41 @@ int   sh_exec( int argc, char **argv ){
 	int fp = open( argv[1], 0 );
 	int ret;
 	if( fp < 0 ){
-		printf( "Could not open file" );
+		printf( "Could not open file\n" );
 	}
 
 	ret = syscall_fexecve( fp, 0, 0 );
 	if ( ret < 0 ){
 		printf( "Could not execute file\n" );
 	}
+	return 0;
+}
+
+int sh_cat( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+
+	int fp = open( argv[1], 0 );
+	int ret, i;
+	char buf[512];
+
+	if ( fp < 0 ){
+		printf( "Could not open file\n" );
+		return 1;
+	}
+
+	while ( 1 ){
+		/* 512 bytes, in the event you want to read a block device.
+ 		 * Reading a block device 1 byte at a time, of course, is incredibly inefficient */
+		ret = read( fp, &buf, 512 );
+		if ( ret < 1 )
+			break;
+
+		for ( i = 0; i < ret; i++ )
+			printf( "%c", buf[i] );
+	}
+
+	close( fp );
+
 	return 0;
 }
 #endif

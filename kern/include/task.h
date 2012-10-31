@@ -34,6 +34,7 @@ typedef struct task {
 	unsigned long sleep;
 	unsigned long status;
 	unsigned long time;
+	unsigned long last_time;
 	bool finished;
 	char ret;
 	struct page_dir *dir;

@@ -6,9 +6,11 @@ extern page_dir_t *current_dir;
 extern unsigned long initial_esp;
 extern unsigned long read_eip(); 	/**< \brief Get current EIP */
 extern unsigned long isr_error_count;
+extern unsigned long get_tick();
 extern void set_kernel_stack();
 volatile task_t *current_task = 0,
-		*task_queue = 0;
+		*task_queue = 0,
+		*last_task = 0;
 
 unsigned long next_pid = 1;
 
@@ -16,17 +18,19 @@ void init_tasking( ){
 	asm volatile( "cli" );
 	extern file_node_t *fs_root;
 
-	current_task = task_queue = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
+	last_task = current_task = task_queue = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
 	current_task->id = next_pid++;
 	current_task->esp = current_task->ebp = 0;
 	current_task->eip = 0;
 	current_task->time = 0;
+	current_task->last_time = 0;
 	current_task->dir = current_dir;
 	current_task->next = 0;
 	current_task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 );
 	current_task->sleep = 0;
 	current_task->cwd  = fs_root;
 	current_task->root = fs_root;
+
 
 	int i = 0;
 	for ( i = 0; i < MAX_MSGS; i++ )
@@ -72,14 +76,19 @@ void switch_task(){
 			temp = (task_t *)task_queue;
 	}
 	current_task = temp;
-	current_task->time++;
+	if ( last_task )
+		last_task->time += get_tick() - last_task->last_time;
+	current_task->last_time = get_tick();
 	current_task->status = S_RUNNING;
+
+	last_task = current_task;
 
 	eip = current_task->eip;
 	esp = current_task->esp;
 	ebp = current_task->ebp;
 
 	current_dir = current_task->dir;
+	set_page_dir( current_dir );
 	set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
 
 	if ( isr_error_count ) isr_error_count--;
@@ -116,6 +125,7 @@ int create_thread( void (*function)()){
 	new_task->parent = parent;
 	new_task->sleep = 0;
 	new_task->time  = 0;
+	new_task->last_time = get_tick();
 	new_task->dir = current_dir;
 	new_task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 );
 	new_task->eip = (unsigned long)function;
@@ -146,19 +156,20 @@ int create_thread( void (*function)()){
 	return new_task->id;
 }
 
+void fork_thread( void ){
+	//exit_thread();
+}
+
 /** \brief Removes calling task from queue */
 void exit_thread( ){
 	asm volatile( "cli" );
 	task_t *temp = (task_t *)current_task;
-	if ( temp->next ){
-		temp->next->parent = temp->parent;
-		temp->parent->next = temp->next;
-	} else {
-		temp->parent->next = 0;
-	}
+	task_t *move = (task_t *)task_queue;
+
+	while ( move->next && move->next != temp ) move = move->next;
+	move->next = temp->next;
+
 	printf( "pid %d exited\n", temp->id );
-	/*extern void kshell();
-	create_thread( &kshell );*/
 	switch_task();
 	asm volatile( "sti" );
 }
@@ -324,14 +335,18 @@ int exit( char status ){
  */
 int fexecve( int fd, char **argv, char **envp ){
 	if ( fd >= current_task->file_count || !current_task->files[fd] )
-		return 1;
+		return -1;
 
 	int ret = load_elf( fd );
+	/*
+	lseek( fd, 0, 0 );
 	if ( ret ){
+		printf("[exec] Trying flat...\n" );
 		ret = load_flat_bin( fd );
 	}
-
-	//exit_thread();
+	lseek( fd, 0, 0 );
+	*/
+	//close( fd );
 
 	return ret; /* If we get here, something went horribly wrong... */
 }
@@ -339,18 +354,42 @@ int fexecve( int fd, char **argv, char **envp ){
 int load_flat_bin( int fd ){
 	char flat_magic[4] = { 'F', 'L', 'A', 'T' };
 	char *buf;
-	void (*code)() = (void *)kmalloc( current_task->files[fd]->file->size, 0, 0 );
+
+	//map_pages( 0xa0000000, 0xa0002000, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, current_dir );
+	//set_page_dir( current_dir );
+	//flush_tlb();
+	//switch_task();
+	//task_t *parent = (task_t *)current_task;
+	//unsigned long eip, new_pid = 0, forked = 0;
+
+	/*
+	eip = read_eip();
+	printf( "Got here\n" );
+	if ( !forked ){
+		forked = 1;
+		return create_thread((void (*)())eip );
+	}
+	*/
+	void (*code)() = (void *)0xa0000000;
+	printf( "Testing memory...\n" );
+	//memset((void *)0xa0000000, 0, 512 );
+	printf( "Reading file... %d:0x%x\n", fd, current_task->files );
 	int i = read( fd, code, current_task->files[fd]->file->size );
 	int j;
+	printf( "Read file %d, got %d bytes\n", fd, i );
 	if ( i < 4 )
 		return -1;
 
+	printf( "Checking header...\n" );
 	for ( j = 0, buf = (char *)code; j < 4 && j < i; j++ ){
 		if ( buf[j] != flat_magic[j] )
 			return -1;
 	}
 
+	printf( "Making thread...\n" );
 	create_thread( code + 4 );
+	//exit_thread();
+	//dump_pids();
 
 	return 0;
 }
@@ -384,6 +423,7 @@ void dump_pids( void ){
 		printf( "\t%d\n", temp->time );
 		temp = temp->next;
 	}
+	printf( "\ttotal time: \t%d\n", get_tick());
 	temp = (task_t *)task_queue;
 }
 

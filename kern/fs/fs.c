@@ -99,6 +99,7 @@ int close( int fd ){
 
 int read( int fd, void *buf, unsigned long size ){
 	extern task_t *current_task;
+	//printf( "[vfs] %d, 0x%x, %d\n", fd, buf, size );
 	if ( !current_task->file_count || fd >= current_task->file_count )
 		return -1;
 
@@ -107,8 +108,9 @@ int read( int fd, void *buf, unsigned long size ){
 	
 	unsigned long i = 0, offset = current_task->files[fd]->r_offset;
 	i = fs_pread( current_task->files[fd]->file, buf, size, offset );
-	if ( i > 0 )
-		current_task->files[fd]->r_offset += i;
+	//printf( "[vfs] %d:%d:%d\n", current_task->files[fd]->file->inode, fd, i );
+	//printf( "%d: %d:%d\n", fd, offset, current_task->files[fd]->r_offset );
+	current_task->files[fd]->r_offset += i;
 
 	return i;
 }
@@ -170,6 +172,43 @@ int chdir( char *path ){
 
 	return 0;
 }
+
+int lseek( int fd, long offset, int whence ){
+	extern task_t *current_task;
+	int size;
+	if ( !current_task->file_count || fd >= current_task->file_count )
+		return -1;
+
+	if ( !current_task->files[fd] )
+		exit_thread();
+
+	switch ( whence ){
+		case 0:
+			if ( offset < 0 )
+				return -1;
+			current_task->files[fd]->r_offset = offset;
+			current_task->files[fd]->w_offset = offset;
+			break;
+		case 1:
+			if ( current_task->files[fd]->r_offset + offset < 0 )
+				return -1;
+			current_task->files[fd]->r_offset += offset;
+			current_task->files[fd]->w_offset += offset;
+			break;
+		case 2:
+			size = current_task->files[fd]->file->size;
+			if ( size + offset < 0 )
+				return -1;
+			current_task->files[fd]->r_offset = size + offset;
+			current_task->files[fd]->w_offset = size + offset;
+			break;
+		default:
+			return -1;
+	}
+
+	return current_task->files[fd]->r_offset;
+}
+	
 
 file_node_t *vfs_find_node( file_node_t *node, char *name ){ DEBUG_HERE
 	int i = 0, has_subdir = 0;
@@ -236,7 +275,7 @@ int vfs_pread( file_node_t *node, void *buf, unsigned long size, unsigned long o
 	int  file_len  = node->size, i;
 
 	for ( i = offset; i < size && i < file_len; i++ ){
-		output[i] = file_data[i];
+		output[i-offset] = file_data[i];
 	}
 
 	return i - offset;

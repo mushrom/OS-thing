@@ -66,12 +66,14 @@ void map_page( unsigned long address, unsigned int permissions, page_dir_t *dir 
 			temp = 0;
 
 	if ( !dir->tables[ low_index ] ){
-		dir->tables[ low_index ] = (void *)kmalloc( sizeof( page_table_t ), 1, &temp );
+		dir->tables[ low_index ] = (void *)kmalloc_e( sizeof( page_table_t ), 1, &temp );
 		memset( dir->tables[ low_index ], 0, PAGE_SIZE );
 		dir->table_addr[ low_index ] = temp | permissions;
 	}
 	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] & 0xfffff000);
-	dir->tables[ low_index ]->address[ high_index % 1024 ] = pop_page() | permissions;
+	if ( !dir->tables[ low_index ]->address[ high_index % 1024 ] )
+		dir->tables[ low_index ]->address[ high_index % 1024 ] = pop_page();
+	dir->tables[ low_index ]->address[ high_index % 1024 ] |= permissions;
 
 	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] | permissions);
 	
@@ -114,7 +116,7 @@ void init_paging( ){
 		kernel_dir->tables[i] = 0;
 
 	/* "PAGE_SIZE * 5" is to provide 20kb of heap for kmalloc_e */
-	map_pages( 0,		placement + PAGE_SIZE * 5, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
+	map_pages( 0,		placement + PAGE_SIZE * 10, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
 	map_pages( KHEAP_START, KHEAP_START + KHEAP_SIZE,  PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
 
 	register_interrupt_handler( 0xe, page_fault_handler );
@@ -127,9 +129,10 @@ void init_paging( ){
 			npages, npages - page_ptr, page_ptr, address );
 
 	map_pages( 0xa0000000,	0xa000a000, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
+	free_pages( 0xa0000000, 0xa000a000, kernel_dir );
 	flush_tlb();
 
-	//memcpy((void *)0xa0001000, "test", 5 );
+	memcpy((void *)0xa0001000, "test", 5 );
 }
 
 #endif

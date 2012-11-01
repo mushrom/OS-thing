@@ -19,8 +19,8 @@ CONFIG_C_FLAGS=-g -DRECOVER_FROM_PANIC
 #CONFIG_C_FLAGS=-g -DNO_DEBUG
 #CONFIG_C_FLAGS=-g
 
-all: check kernel image
-dev-all: check kernel image docs test
+all: check kernel userland image
+dev-all: check kernel userland image docs test
 
 debug:
 	echo $(CROSS_PREFIX)
@@ -52,6 +52,9 @@ image:
 	@echo "To boot: $(EMULATOR) $(EMU_FLAGS)"
 	@echo -e "[\033[0;32mdone\033[0;0m]"
 	@echo -e "[\033[0;34mdone\033[0;0m]";
+
+userland:
+	@cd user; $(MAKE)
 
 test:
 	$(EMULATOR) $(EMU_FLAGS)

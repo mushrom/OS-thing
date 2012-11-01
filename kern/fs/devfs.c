@@ -112,18 +112,18 @@ int meh_read( file_node_t *node, void *buf, unsigned long size ){
 	for ( i = 0; i < size; i++ ){
 		in[i] = 'a' + ( i % 26 );
 	}
-	in[i] = 0;
+	//in[i] = 0;
 	return i;
 }
 
 int meh_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
 	int i;
 	char *in = buf;
-	for ( i = offset; i < size; i++ ){
-		in[i] = 'a' + ( i % 26 );
+	for ( i = offset; i - offset < size; i++ ){
+		in[i-offset] = 'a' + ( i % 26 );
 	}
-	in[i] = 0;
-	return i;
+	//in[i-offset] = 0;
+	return i-offset;
 }
 
 int null_read( file_node_t *node, void *buf, unsigned long size ){

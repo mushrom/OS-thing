@@ -1,6 +1,0 @@
-"\x31\xc0" //xor eax, eax; leaves 0 in eax, which is syscall_cls
-"\xcd\x50" //int 0x50
-"\xc3";    //ret
-
-\x31\xc0\xcd\x50\xc3
-

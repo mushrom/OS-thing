@@ -4,6 +4,10 @@
 
 char elf_h_magic[4] = { 0x7f, 'E', 'L', 'F' };
 
+/* \brief Load a static ELF executable from an open file descriptor
+ * @param fd The file descript to read from
+ * @return Nothing if successful, -1 otherwise.
+ */
 int load_elf( int fd ){
 	extern task_t *current_task;
 	printf( "Checking file...\n" );
@@ -12,9 +16,9 @@ int load_elf( int fd ){
 
 	Elf32_Ehdr elf_header;
 	Elf32_Phdr phbuf;
-	Elf32_Shdr shbuf;
+	//Elf32_Shdr shbuf;
 	int ret = read( fd, &elf_header, sizeof( Elf32_Ehdr ));
-	char *buf = &elf_header;
+	char *buf = (char *)&elf_header;
 	int i;
 
 	if ( ret < sizeof( Elf32_Ehdr ))

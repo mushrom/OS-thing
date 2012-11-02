@@ -1,5 +1,5 @@
-#ifndef _kernel_ipc_h
-#define _kernel_ipc_h
+#ifndef _user_ipc_h
+#define _user_ipc_h
 enum {
 	MSG_NULL,
 	MSG_STATUS,
@@ -11,7 +11,7 @@ enum {
 	MSG_END
 };
 
-char *msg_lookup( unsigned int );
+//char *msg_lookup( unsigned int );
 
 typedef struct ipc_msg {
 	unsigned long msg_type;

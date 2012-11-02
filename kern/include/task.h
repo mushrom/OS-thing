@@ -61,7 +61,7 @@ void exit_thread( );
 
 void gen_msg( ipc_msg_t *msg, unsigned char type, unsigned long size, void *buf );
 int  send_msg( unsigned long pid, ipc_msg_t *msg );
-int  get_msg( ipc_msg_t *buf, int blocking );
+int  get_msg( unsigned long blocking, ipc_msg_t *buf );
 
 void dump_pids( void );
 void switch_to_usermode( void );

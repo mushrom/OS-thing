@@ -3,17 +3,18 @@
 #include <ipc.h>
 
 char *msg_lookup_table[] = {
+	"null"
 	"status",
 	"acknowledge",
 	"no block",
 	"block",
 	"string",
 	"exit",
-	"null"
+	"end"
 };
 
 char *msg_lookup( unsigned int index ){
-	if ( index < MSG_NULL )
+	if ( index < MSG_END )
 		return msg_lookup_table[ index ];
 	else
 		return "unknown";

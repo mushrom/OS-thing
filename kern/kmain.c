@@ -55,8 +55,12 @@ char *g_errfile = "Debugging disabled";
 void user_daemon( ){
 	switch_to_usermode();
 	char *str = "[\x12+\x17] Usermode is operational.\n";
-	int fp = syscall_open( "/dev/tty", 0);
+	//int fp = syscall_open( "/dev/tty", 0);
+	int fp = syscall_open( "/init/daemon", 0);
+	/*
 	syscall_write( fp, str, 32 );
+	*/
+	syscall_fexecve( fp, 0, 0 );
 	syscall_close( fp );
 	syscall_exit(0);
 }
@@ -68,7 +72,7 @@ void main_daemon( ){
 	ipc_msg_t msg;
 	int ret, meh;
 	while ( 1 ){
-		ret = get_msg( &msg, MSG_BLOCK );
+		ret = syscall_get_msg( MSG_BLOCK, &msg );
 		if ( ret == 0 ){
 			meh = 0xfffffff;
 			switch ( msg.msg_type ){
@@ -87,10 +91,7 @@ void main_daemon( ){
 /** A process to test sleeping/switching tasks */
 void test( ){
 	while ( 1 ){
-		//printf( "pid %d, calling in\n", getpid( ));
 		sleep_thread( 1000 );
-		//while( 1 );
-		//switch_task();
 	}
 	exit_thread();
 }
@@ -100,10 +101,7 @@ void meh( ){
 	ipc_msg_t msg, reply;
 	int ret;
 	while ( 1 ){
-		//kputchar( 'b' );
-		//printf( "pid \x18%d\x17 sleeping\n", getpid());
-		//sleep_thread( 10 );
-		ret = get_msg( &msg, MSG_NO_BLOCK );
+		ret = get_msg( MSG_NO_BLOCK, &msg );
 		if ( ret == 0 ){
 			printf( "pid %d: got message 0x%x (%s) from pid %d\n",
 				 getpid(), msg.msg_type, msg_lookup( msg.msg_type ), msg.sender );
@@ -120,7 +118,7 @@ void meh( ){
 			if ( msg.msg_type == 234 ){
 				int fd = open( "/init/blarg", 0 );
 				if ( fd > -1 ){
-					printf( "Testing...(%d\n)\n", fd );
+					printf( "Testing...(%d)\n", fd );
 					fexecve( fd, 0, 0 );
 				}
 				close( fd );
@@ -184,16 +182,16 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	init_shell();
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 	con_scroll_offset = 0;
+	//sleep_thread( 0xffffffff );
 
 	//for ( i = 0; i < 100; i++ )
-		create_thread( &test );
+	create_thread( &test );
 	for ( i = 0; i < 3; i++ )
 		create_thread( &meh );
 
 	create_thread( &main_daemon );
 	create_thread( &user_daemon );
 	create_thread( &kshell );
-	create_thread( &test );
 	//switch_to_usermode_jmp((unsigned long)&user_daemon );
 	sleep_thread( 0xffffffff );
 }

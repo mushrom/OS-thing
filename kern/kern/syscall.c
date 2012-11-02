@@ -7,7 +7,7 @@
 
 static void syscall_handler( registers_t *regs );
 
-#define NUM_SYSCALLS 12
+#define NUM_SYSCALLS 15
 /** System call table 
  * Contains the address of functions to jump to
  * upon recieving int 0x50
@@ -18,14 +18,18 @@ static void *syscalls[ NUM_SYSCALLS ] = {
 	&open,
 	&close,
 	&read,
-	&write,
 
+	&write,
 	&fdopendir,
 	&readdir,
+	&chdir,
 	&getpid,
+
 	&fexecve,
-	&kputs,
-	&chdir
+	&create_thread,
+	&send_msg,
+	&get_msg,
+	&kputs
 };
 
 DEFN_SYSCALL0(	cls, 		0					);
@@ -36,10 +40,14 @@ DEFN_SYSCALL3(	read,		4, 	int, void *, unsigned long 	);
 DEFN_SYSCALL3(	write,		5, 	int, void *, unsigned long 	);	
 DEFN_SYSCALL1(	fdopendir,	6, 	int				);	
 DEFN_SYSCALL2(	readdir,	7, 	int, struct dirp * 		);	
-DEFN_SYSCALL0(	getpid,		8					);
-DEFN_SYSCALL3(	fexecve,	9, 	int, char **, char ** 		);
-DEFN_SYSCALL1(	kputs, 		10,	char *				);
-DEFN_SYSCALL1(	chdir, 		11,	char *				);
+DEFN_SYSCALL1(	chdir, 		8,	char *				);
+DEFN_SYSCALL0(	getpid,		9					);
+DEFN_SYSCALL3(	fexecve,	10, 	int, char **, char ** 		);
+DEFN_SYSCALL1(	thread,		11,	void *	 			);
+DEFN_SYSCALL2(	send_msg,	12,	unsigned long, ipc_msg_t * 	);
+DEFN_SYSCALL2(	get_msg,	13,	unsigned long, ipc_msg_t * 	);
+
+DEFN_SYSCALL1(	kputs, 		14,	char *				);
 
 void init_syscalls(){
 	register_interrupt_handler( 0x50, &syscall_handler );

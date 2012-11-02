@@ -341,7 +341,7 @@ int   sh_msg( int argc, char **argv ){
 
 int sh_getmsg( int argc, char **argv ){
 	ipc_msg_t *msg = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0 );
-	if ( get_msg( msg, MSG_NO_BLOCK ) == 0 ){
+	if ( get_msg( MSG_NO_BLOCK, msg ) == 0 ){
 		printf( "Got message 0x%x (%s) from pid %d\n", msg->msg_type, 
 				msg_lookup( msg->msg_type ), msg->sender );
 	} else {

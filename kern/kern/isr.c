@@ -45,7 +45,7 @@ void end_bad_task( void ){
 		PANIC( "First thread faulted, cannot end." );
 	exit_thread();
 #else
-	PANIC( "Kernel panic\n" );
+	PANIC( "Kernel panic" );
 #endif
 }
 
@@ -67,18 +67,24 @@ void dump_registers( registers_t *regs ){
 		regs->int_no, regs->err_code, regs->eflags );
 }
 
+void zero_division_fault( registers_t *regs ){
+	printf( "Zero division fault\n" );
+	dump_registers( regs );
+	end_bad_task( );
+}
+
+void invalid_op_fault( registers_t *regs ){
+	printf( "Invalid opcode\n" );
+	dump_registers( regs );
+	end_bad_task( );
+}
+
 void gen_protect_fault( registers_t *regs ){
 	printf( "General protection fault\n" );
 	dump_registers( regs );
 	end_bad_task( );
 
 	//PANIC( "General protection fault" );
-}
-
-void zero_division_fault( registers_t *regs ){
-	printf( "Zero division fault\n" );
-	dump_registers( regs );
-	end_bad_task( );
 }
 
 #endif

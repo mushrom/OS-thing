@@ -19,18 +19,23 @@ void init_tasking( ){
 	extern file_node_t *fs_root;
 
 	last_task = current_task = task_queue = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
+
 	current_task->id = next_pid++;
+	current_task->parent = (task_t *)current_task;
+	current_task->next = 0;
+
+	current_task->dir = current_dir;
+	current_task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 );
+
+	current_task->last_time = 0;
+	current_task->time = 0;
+	current_task->sleep = 0;
+
 	current_task->esp = current_task->ebp = 0;
 	current_task->eip = 0;
-	current_task->time = 0;
-	current_task->last_time = 0;
-	current_task->dir = current_dir;
-	current_task->next = 0;
-	current_task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 );
-	current_task->sleep = 0;
+
 	current_task->cwd  = fs_root;
 	current_task->root = fs_root;
-
 
 	int i = 0;
 	for ( i = 0; i < MAX_MSGS; i++ )
@@ -48,18 +53,15 @@ void switch_task(){
 	if ( !current_task )
 		return;
 
-	//printf( "[1]"  );
 	unsigned long esp = 0, ebp = 0, eip = 0;
 	task_t *temp = (task_t *)current_task;
 	asm volatile( "mov %%esp, %0" : "=r"(esp));
 	asm volatile( "mov %%ebp, %0" : "=r"(ebp));
 	eip = read_eip();
-	//printf( "[2] 0x%x ", eip );
 
 	if ( eip == 0xdeadbeef )
 		return;
 
-	//printf( "[3] "  );
 	current_task->eip = eip;
 	current_task->esp = esp;
 	current_task->ebp = ebp;
@@ -92,8 +94,6 @@ void switch_task(){
 	set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
 
 	if ( isr_error_count ) isr_error_count--;
-
-	//printf( "[4] 0x%x\n", eip );
 
 	asm volatile (" 	\
 		cli;		\
@@ -146,11 +146,9 @@ int create_thread( void (*function)()){
 
 	temp = (task_t *)task_queue;
 	while ( temp->next ){
-		parent = temp;
 		temp = temp->next;
 	}
 	temp->next = new_task;
-	temp->parent = parent;
 
 	asm volatile( "sti" );
 	return new_task->id;
@@ -181,13 +179,17 @@ void exit_thread( ){
 int kill_thread( unsigned long pid ){
 	asm volatile( "cli" );
 	task_t *temp = get_pid_task( pid );
+	task_t *move = (task_t *)task_queue;
 
 	if ( !temp ){
 		asm volatile( "sti" );
 		return 1;
 	}
-	temp->next->parent = temp->parent;
-	temp->parent->next = temp->next;
+	while ( move->next && move->next != temp )
+		move = move->next;
+
+	printf( "[kill] Killing pid %d\n", temp->id );
+	move->next = temp->next;
 
 	asm volatile( "sti" );
 	return 0;
@@ -211,7 +213,7 @@ void sleep_thread( unsigned long time ){
  * @param blocking Whether to block the thread or not
  * @return 0 if a message was recieved, or 1 if there were no messages.
  */
-int get_msg( ipc_msg_t *buf, int blocking ){
+int get_msg( unsigned long blocking, ipc_msg_t *buf ){
 	asm volatile( "cli" );
 	task_t *temp = (task_t *)current_task;
 	unsigned int i = 0;
@@ -258,12 +260,6 @@ int send_msg( unsigned long pid, ipc_msg_t *msg ){
 		temp->msg_buf[i] = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0 );
 	memcpy( temp->msg_buf[i], msg, sizeof( ipc_msg_t ));
 	temp->msg_count = (temp->msg_count + 1) % MAX_MSGS;
-	/*
-	while ( temp->status != S_LISTENING ){
-		current_task->status = S_SENDING;
-		switch_task();
-	}
-	*/
 
 	asm volatile( "sti" );
 	return 0;
@@ -282,33 +278,6 @@ task_t *get_pid_task( unsigned long pid ){
 	}
 	return 0;
 }
-
-/*
-void move_stack( void *new_stack_start, unsigned long size ){
-	unsigned long i;
-	for ( i = (unsigned long)new_stack_start; i >= (unsigned long)new_stack_start - size; i -= 0x1000 ){
-		alloc_page( get_page( i, 1, current_dir ));
-	}
-	for ( i = (unsigned long)new_stack_start; i >= (unsigned long)new_stack_start - size; i -= 0x1000 ){
-		set_table_perms( PAGE_WRITEABLE | PAGE_PRESENT, i, current_dir );
-	}
-	unsigned long pd_addr;
-	asm volatile( "mov %%cr3, %0" : "=r" (pd_addr));
-	asm volatile( "mov %0, %%cr3" :: "r" (pd_addr));
-	//memcpy((char *)0xe0000000 - 0x1000, "test", 5 );
-	printf( "    Woot, it didn't break. :D\n", 0xe0000000 - 0x1000 );
-
-	unsigned long old_esp, old_ebp, offset, new_esp ,new_ebp;
-	asm volatile( "mov %%esp, %0" : "=r" (old_esp));
-	asm volatile( "mov %%ebp, %0" : "=r" (old_ebp));
-
-	offset = (unsigned long)new_stack_start - initial_esp;
-	new_esp = old_esp + offset;
-	//new_ebp = old_ebp + offset;
-	memcpy((void *)new_esp, (void *)old_esp, initial_esp - old_esp );
-}
-*/
-
 /** \brief Return caller's pid.
  * Is a system call. */
 int getpid(){
@@ -338,62 +307,9 @@ int fexecve( int fd, char **argv, char **envp ){
 		return -1;
 
 	int ret = load_elf( fd );
-	/*
-	lseek( fd, 0, 0 );
-	if ( ret ){
-		printf("[exec] Trying flat...\n" );
-		ret = load_flat_bin( fd );
-	}
-	lseek( fd, 0, 0 );
-	*/
-	//close( fd );
 
 	return ret; /* If we get here, something went horribly wrong... */
 }
-
-int load_flat_bin( int fd ){
-	char flat_magic[4] = { 'F', 'L', 'A', 'T' };
-	char *buf;
-
-	//map_pages( 0xa0000000, 0xa0002000, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, current_dir );
-	//set_page_dir( current_dir );
-	//flush_tlb();
-	//switch_task();
-	//task_t *parent = (task_t *)current_task;
-	//unsigned long eip, new_pid = 0, forked = 0;
-
-	/*
-	eip = read_eip();
-	printf( "Got here\n" );
-	if ( !forked ){
-		forked = 1;
-		return create_thread((void (*)())eip );
-	}
-	*/
-	void (*code)() = (void *)0xa0000000;
-	printf( "Testing memory...\n" );
-	//memset((void *)0xa0000000, 0, 512 );
-	printf( "Reading file... %d:0x%x\n", fd, current_task->files );
-	int i = read( fd, code, current_task->files[fd]->file->size );
-	int j;
-	printf( "Read file %d, got %d bytes\n", fd, i );
-	if ( i < 4 )
-		return -1;
-
-	printf( "Checking header...\n" );
-	for ( j = 0, buf = (char *)code; j < 4 && j < i; j++ ){
-		if ( buf[j] != flat_magic[j] )
-			return -1;
-	}
-
-	printf( "Making thread...\n" );
-	create_thread( code + 4 );
-	//exit_thread();
-	//dump_pids();
-
-	return 0;
-}
-	
 
 /** \brief Dump all running pids to screen */
 void dump_pids( void ){
@@ -453,6 +369,7 @@ void switch_to_usermode( void ){
 	" );
 }
 
+/** Switch to user mode, and return to a specific address. */
 void switch_to_usermode_jmp( unsigned long addr ){
 	set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
 
@@ -476,5 +393,32 @@ void switch_to_usermode_jmp( unsigned long addr ){
 		iret;		\
 	":: "m"(addr));
 }
+
+/*
+void move_stack( void *new_stack_start, unsigned long size ){
+	unsigned long i;
+	for ( i = (unsigned long)new_stack_start; i >= (unsigned long)new_stack_start - size; i -= 0x1000 ){
+		alloc_page( get_page( i, 1, current_dir ));
+	}
+	for ( i = (unsigned long)new_stack_start; i >= (unsigned long)new_stack_start - size; i -= 0x1000 ){
+		set_table_perms( PAGE_WRITEABLE | PAGE_PRESENT, i, current_dir );
+	}
+	unsigned long pd_addr;
+	asm volatile( "mov %%cr3, %0" : "=r" (pd_addr));
+	asm volatile( "mov %0, %%cr3" :: "r" (pd_addr));
+	//memcpy((char *)0xe0000000 - 0x1000, "test", 5 );
+	printf( "    Woot, it didn't break. :D\n", 0xe0000000 - 0x1000 );
+
+	unsigned long old_esp, old_ebp, offset, new_esp ,new_ebp;
+	asm volatile( "mov %%esp, %0" : "=r" (old_esp));
+	asm volatile( "mov %%ebp, %0" : "=r" (old_ebp));
+
+	offset = (unsigned long)new_stack_start - initial_esp;
+	new_esp = old_esp + offset;
+	//new_ebp = old_ebp + offset;
+	memcpy((void *)new_esp, (void *)old_esp, initial_esp - old_esp );
+}
+*/
+
 
 #endif

@@ -24,6 +24,7 @@ void init_tables( void ){
 	init_idt();
 	memset( &interrupt_handlers, 0, sizeof( isr_t ) * 256 );
 	register_interrupt_handler(  0x0, &zero_division_fault );
+	register_interrupt_handler(  0x6, &invalid_op_fault );
 	register_interrupt_handler(  0xd, &gen_protect_fault );
 	register_interrupt_handler( 0x30, &dump_registers );
 }

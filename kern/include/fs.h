@@ -137,5 +137,6 @@ int write( int fd, void *buf, unsigned long size );
 struct dirp *fdopendir( int fd );
 struct dirent *readdir( int fd, struct dirp *dir );
 int chdir( char *path );
+int lseek( int fd, long offset, int whence );
 
 #endif

@@ -1,5 +1,6 @@
 #ifndef _kernel_paging_h
 #define _kernel_paging_h
+#include <kconfig.h>
 #include <isr.h>
 #include <stdint.h>
 #include <kmacros.h>
@@ -36,5 +37,7 @@ void free_pages( unsigned long start, unsigned long end, page_dir_t * );
 void init_paging();
 void set_page_dir( page_dir_t * );
 void flush_tlb();
+
+page_dir_t *clone_page_dir( page_dir_t *src );
 
 #endif

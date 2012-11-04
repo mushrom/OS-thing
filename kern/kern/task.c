@@ -106,6 +106,24 @@ void switch_task(){
 		jmp *%%ecx" :: "r"(eip), "r"(esp), "r"(ebp), "r"(current_dir->address ));
 }
 
+int create_process( void (*function)( char **, char ** ), char **argv, char **envp ){
+	asm volatile( "cli" );
+	unsigned long av = (unsigned)argv, ep = (unsigned)envp;
+
+	task_t *new_task = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
+
+	init_task( new_task );
+	new_task->eip = (unsigned long)function;
+
+	PUSH( new_task->stack, av );
+	PUSH( new_task->stack, ep );
+	
+	add_task( new_task );
+
+	asm volatile( "sti" );
+	return new_task->id;
+}
+
 /** \brief Adds new thread to task queue
  * @param function The address of a void (*)() type function to start the thread at
  * @return The new thread's pid
@@ -113,45 +131,56 @@ void switch_task(){
 int create_thread( void (*function)()){
 	asm volatile( "cli" );
 
-	//unsigned long eip = 0;
-	task_t 	*parent = (task_t *)current_task,
-		*temp	= (task_t *)task_queue;
-
 	task_t *new_task = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
-	new_task->esp = new_task->ebp = new_task->eip = 0;
 
-	new_task->id = next_pid++;
-	new_task->next = 0;
-	new_task->parent = parent;
-	new_task->sleep = 0;
-	new_task->time  = 0;
-	new_task->last_time = get_tick();
-	new_task->dir = current_dir;
-	new_task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 );
+	init_task( new_task );
 	new_task->eip = (unsigned long)function;
-	new_task->esp = new_task->stack;
-	new_task->ebp = current_task->ebp;
-
-	int i = 0;
-	for ( i = 0; i < MAX_MSGS; i++ )
-		new_task->msg_buf[i] = 0;
-	for ( i = 0; i < MAX_FILES; i++ )
-		new_task->files[i] = 0;
-
-	new_task->msg_ptr    = 0;
-	new_task->msg_count  = 0;
-	new_task->file_count = 0;
-	new_task->cwd 	     = parent->cwd;
-	new_task->root 	     = parent->root;
-
-	temp = (task_t *)task_queue;
-	while ( temp->next ){
-		temp = temp->next;
-	}
-	temp->next = new_task;
+	add_task( new_task );
 
 	asm volatile( "sti" );
 	return new_task->id;
+}
+
+task_t *init_task( task_t *task ){
+	task_t 	*parent = (task_t *)current_task,
+		*temp	= (task_t *)task_queue;
+
+	task->esp = task->ebp = task->eip = 0;
+
+	task->id = next_pid++;
+	task->next = 0;
+	task->parent = parent;
+	task->sleep = 0;
+	task->time  = 0;
+	task->last_time = get_tick();
+	task->dir = current_dir;
+	task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 ) + KERNEL_STACK_SIZE;
+	task->esp = task->stack;
+	task->ebp = current_task->ebp;
+
+	int i = 0;
+	for ( i = 0; i < MAX_MSGS; i++ )
+		task->msg_buf[i] = 0;
+	for ( i = 0; i < MAX_FILES; i++ )
+		task->files[i] = 0;
+
+	task->msg_ptr    = 0;
+	task->msg_count  = 0;
+	task->file_count = 0;
+	task->cwd 	     = parent->cwd;
+	task->root 	     = parent->root;
+
+	return task;
+}
+
+task_t *add_task( task_t *task ){
+	task_t *temp = (task_t *)task_queue;
+	while ( temp->next ){
+		temp = temp->next;
+	}
+	temp->next = task;
+
+	return task;
 }
 
 void fork_thread( void ){
@@ -306,7 +335,7 @@ int fexecve( int fd, char **argv, char **envp ){
 	if ( fd >= current_task->file_count || !current_task->files[fd] )
 		return -1;
 
-	int ret = load_elf( fd );
+	int ret = load_elf( fd, argv, envp );
 
 	return ret; /* If we get here, something went horribly wrong... */
 }

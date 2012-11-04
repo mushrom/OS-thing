@@ -71,6 +71,7 @@ static int read_kb( file_node_t *node, void *buf, size_t size ){
 		out_buf[i] = read_buf;
 		read_buf = 0;
 	}
+	read_buf = 0;
 	return i;
 }
 

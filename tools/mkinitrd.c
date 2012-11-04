@@ -43,19 +43,23 @@ int main( int argc, char *argv[] ){
 			fwrite( &file_buf, sizeof( initrd_file_header_t ), 1, out_fp );
 		}
 	}
-	for ( i = 2; i < argc; i++ ){
+	for ( i = 2, j = 0; i < argc; i++ ){
 		if (( in_fp = fopen( argv[i], "r" )) == NULL ){
 			printf( "Could not generate image, \"%s\" does not exist\n", argv[i] );
 			exit( 1 );
 		}
-		j = 0;
 		while ( 1 ){
 			buf = fgetc( in_fp );
-			if ( !feof( in_fp ))
+			if ( !feof( in_fp )){
 				fputc( buf, out_fp );
+				j++;
+			}
 			else break;
 		}
+		fclose( in_fp );
 	}
+
+	fclose( out_fp );
 
 	return 0;
 }

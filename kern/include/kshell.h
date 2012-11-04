@@ -1,6 +1,7 @@
 #ifndef _kernel_shell_h
 #define _kernel_shell_h
 
+#include <kconfig.h>
 #include <skio.h>
 
 #include <kmacros.h>

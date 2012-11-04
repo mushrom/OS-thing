@@ -165,6 +165,6 @@ enum {
 	PT_HIPROC =	0x7fffffff
 };
 
-int load_elf( int fd );
+int load_elf( int fd, char **argv, char **envp );
 
 #endif

@@ -1,8 +1,8 @@
 #ifndef _kernel_shell_c
 #define _kernel_shell_c
-#ifndef NO_DEBUG
-
 #include <kshell.h>
+
+#ifdef ENABLE_BUILTIN_SHELL
 
 #define STR_LIMIT 128 
 #define CMD_LIMIT 64
@@ -67,7 +67,7 @@ void register_shell_func( char *name, shell_func_t function ){
 }
 
 void kshell( void ){
-	char *cmd, **args, *PS1 = "[\x12shell\x17] $ ";
+	char *cmd, **args, *PS1 = "[\x12shell\x17] # ";
 	unsigned char buf = 0;
 	//fs_cwd = fs_root;
 	int running = 1, i = 0, j = 0, arg_no = 0, cmd_found = 0;
@@ -380,7 +380,7 @@ int   sh_exec( int argc, char **argv ){
 		printf( "Could not open file\n" );
 	}
 
-	ret = syscall_fexecve( fp, 0, 0 );
+	ret = syscall_fexecve( fp, argv, 0 );
 	if ( ret < 0 ){
 		printf( "Could not execute file\n" );
 	}
@@ -414,5 +414,10 @@ int sh_cat( int argc, char **argv ){
 
 	return 0;
 }
+#else
+
+void init_shell( ){ return; }
+void kshell( void ){ return; }
+
 #endif
 #endif

@@ -4,8 +4,8 @@
 #include <kmacros.h>
 
 #define KHEAP_START 0xc0000000
-//#define KHEAP_SIZE  0x400000 
-#define KHEAP_SIZE  0xb00000 
+#define KHEAP_SIZE  0x400000 
+//#define KHEAP_SIZE  0x250000 
 #define KHEAP_MAGIC 0xfee1dead
 
 typedef struct kmemnode {

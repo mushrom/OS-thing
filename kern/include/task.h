@@ -12,6 +12,7 @@
 #define KERNEL_STACK_SIZE 4096
 #define MAX_MSGS 32
 #define MAX_FILES 32
+#define PUSH( stack, data ) { stack -= sizeof( data ); memcpy((void *)stack, &data, sizeof( data )); }
 
 enum {
 	S_RUNNING,
@@ -54,6 +55,7 @@ typedef struct task {
 } task_t;
 
 void init_tasking( );
+int  create_process( void (*)(char **, char **), char **, char ** );
 int  create_thread( void (*)());
 int  kill_thread( unsigned long pid );
 void sleep_thread( unsigned long time );
@@ -75,5 +77,7 @@ int fexecve( int fd, char **argv, char **envp );
 int load_flat_bin( int fd );
 
 task_t *get_pid_task( unsigned long pid );
+task_t *init_task( task_t *task );
+task_t *add_task(  task_t *task );
 
 #endif

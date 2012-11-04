@@ -8,7 +8,7 @@ char elf_h_magic[4] = { 0x7f, 'E', 'L', 'F' };
  * @param fd The file descript to read from
  * @return Nothing if successful, -1 otherwise.
  */
-int load_elf( int fd ){
+int load_elf( int fd, char **argv, char **envp ){
 	extern task_t *current_task;
 	printf( "Checking file...\n" );
 	if ((unsigned)fd > MAX_FILES || !current_task->files[fd] || fd < 0 )
@@ -46,14 +46,18 @@ int load_elf( int fd ){
 	printf( "[debug] Phead type: 0x%x, vaddr: 0x%x, offset: 0x%x, rsize: 0x%x, vsize: 0x%x\n", 
 		phbuf.p_type, phbuf.p_vaddr, phbuf.p_offset, phbuf.p_filesz, phbuf.p_memsz );
 
-	map_pages( phbuf.p_vaddr, phbuf.p_vaddr + phbuf.p_memsz, 7, current_task->dir );
-	flush_tlb();
-
 	buf = (char *)kmalloc( phbuf.p_filesz, 0, 0 );
 	lseek( fd, phbuf.p_offset, 0 );
 	read( fd, buf, phbuf.p_filesz );
+
+	page_dir_t *new_dir = clone_page_dir( current_task->dir );
+	map_pages( phbuf.p_vaddr, phbuf.p_vaddr + phbuf.p_memsz, 7, new_dir );
+	set_page_dir( new_dir );
 	memcpy((void *)phbuf.p_vaddr, buf, phbuf.p_filesz );
-	create_thread((void *)elf_header.e_entry );
+
+	//flush_tlb();
+
+	create_process((void *)elf_header.e_entry, argv, envp );
 	
 	//free_pages( 0x8000000, 0x8050000, current_task->dir );
 	//flush_tlb();

@@ -16,9 +16,9 @@ AS=nasm
 #CC=gcc
 #LD=ld 
 #CONFIG_C_FLAGS=-g -DRECOVER_FROM_PANIC -DP_STACKCHECK
-CONFIG_C_FLAGS=-g -DRECOVER_FROM_PANIC 
+#CONFIG_C_FLAGS=-g -DRECOVER_FROM_PANIC 
 #CONFIG_C_FLAGS=-g -DNO_DEBUG
-#CONFIG_C_FLAGS=-g
+CONFIG_C_FLAGS=-g
 
 all: check kernel userland image
 dev-all: check kernel userland image docs test

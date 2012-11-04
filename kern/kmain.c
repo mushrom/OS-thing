@@ -34,6 +34,7 @@
 #include <kb.h>
 #include <ide.h>
 
+#include <kconfig.h>
 #include <kshell.h>
 #include <kmacros.h>
 #include <common.h>
@@ -43,6 +44,7 @@ unsigned int initial_esp; 			/**< esp at start, is set to \ref initial_stack */
 unsigned int g_errline = 0;			/**< Error line of last debug, see \ref kmacros.h */
 extern unsigned short con_scroll_offset;	/**< How many lines to skip while scrolling */
 page_dir_t *kernel_dir;				/**< kernel page directory */
+struct multiboot_header *g_mboot_header = 0;
 
 #ifndef NO_DEBUG
 /** File of last debug, see \ref kmacros.h */
@@ -50,20 +52,6 @@ char *g_errfile = "unknown";
 #else
 char *g_errfile = "Debugging disabled";
 #endif
-
-/** The process that does the jump to usermode */
-void user_daemon( ){
-	switch_to_usermode();
-	char *str = "[\x12+\x17] Usermode is operational.\n";
-	//int fp = syscall_open( "/dev/tty", 0);
-	int fp = syscall_open( "/init/daemon", 0);
-	/*
-	syscall_write( fp, str, 32 );
-	*/
-	syscall_fexecve( fp, 0, 0 );
-	syscall_close( fp );
-	syscall_exit(0);
-}
 
 /** A test daemon that listens for a message, and executes commands
  * based on the message
@@ -86,14 +74,6 @@ void main_daemon( ){
 			}
 		}
 	}
-}
-
-/** A process to test sleeping/switching tasks */
-void test( ){
-	while ( 1 ){
-		sleep_thread( 1000 );
-	}
-	exit_thread();
 }
 
 /** A process to test the ipc's messaging */
@@ -131,13 +111,97 @@ void meh( ){
 	exit_thread();
 }
 
+void kinit_prompt( void ){
+	char input[256];
+	char *initstr = "init";
+	char *args[16];
+	char *cmd;
+	char buf= 0;
+	int fd 	= 0, 
+	    j 	= 0,
+	    l 	= 0,
+	    i 	= 0;
+
+	/* Check to see if the init is specified in multiboot command line... */
+	if ( g_mboot_header && g_mboot_header->flags & 2 ){
+		cmd = (void *)g_mboot_header->cmdline;
+		args[0] = (char *)&input;
+		for ( j = 1, i = 0; cmd[i] && i < 256 && j < 16; i++ ){
+			input[i] = cmd[i];
+			if ( input[i] == ' ' ){
+				args[j++] = &input[i] + 1;
+				input[i] = 0;
+			}
+		}
+		input[i] = 0;
+		for ( l = i = 0; i < j; i++ ){
+			for ( l = 0; args[i][l] && args[i][l] != '='; l++ ){
+				if ( args[i][l] != initstr[l] ){
+					l = 0;
+					break;
+				}
+			}
+			if ( l == 4 ){
+				fd = syscall_open( args[i] + l + 1, 0 );
+				if ( fd < 0 )
+					PANIC( "Could not open init file" );
+
+				switch_to_usermode();
+				syscall_fexecve( fd, 0, 0 );
+				syscall_exit( 0 );
+			}
+		}
+
+			
+	}
+	memset( input, 0, 256 );
+
+	/* Nope, have the user manually enter it */
+	printf( "Enter path of an executable, or \"!\" for built-in shell\n" );
+	while ( 1 ) {
+		printf( "init > " );
+		pause();
+		for ( i = 0; ( buf = get_in_char()) != '\n' && i < 256; ){
+			if ( buf == '\b' ){
+				input[i] = 0;
+				if ( i > 0 ){
+					i--;
+					printf( "\b" );
+				}
+			} else {
+				input[i++] = buf;
+				printf( "%c", buf );
+			}
+			pause();
+		}
+		input[i] = 0;
+		printf( "\n" );
+		if ( input[0] == '!' ){
+			init_shell();
+			kshell();
+		} else {
+			fd = open( input, 0 );
+			if ( fd < 0 ){
+				fd = 0;
+				printf( "Could not open file \"%s\".\n", input );
+			} else {
+				switch_to_usermode();
+				syscall_fexecve( fd, 0, 0 );
+				syscall_exit(0);
+			}
+		}
+		memset( input, 0, 256 );
+	}	
+	exit_thread();
+}
+
 /** \brief Main kernel code 
  * @param mboot multiboot structure provided by bootloader
  * @param initial_stack initial esp pointer, pushed by loader.s
  * @param magic multiboot magic value
  * */
 void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int magic ){
-	int i;
+	int i, initrd_size;
 	initrd_header_t *initrd = 0;
 	initial_esp = initial_stack;
 	cls();
@@ -155,11 +219,20 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 			printf( "    cmd = %s\n", mboot->cmdline );
 		if ( mboot->mods_count ){
 			initrd = (void *)*((int *)mboot->mods_addr);
+			initrd_size = *(unsigned int *)(mboot->mods_addr + 4 ) - (unsigned int)initrd;
+			printf( "    initrd size: %d bytes\n", initrd_size );
+
 			extern unsigned long placement;
-			placement += *(int *)(mboot->mods_addr + 4 );
+			//printf( "    old placement: 0x%x\n", placement );
+			placement = (*(int *)(mboot->mods_addr + 4 ) & 0xfffff000) + 0x1000;
+			//placement = *(int *)(mboot->mods_addr + 4 );
+			//placement += *(int *)(mboot->mods_addr + 4 );
+			//placement += initrd_size;
+			printf( "    new placement: 0x%x\n", placement );
 		} else {
 			printf( "    No multiboot modules loaded\n" );
 		}
+		g_mboot_header = mboot;
 	}
 
 	init_tables(); 		printf( "[\x12+\x17] initialised tables\n" );
@@ -179,19 +252,12 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 				printf( "[\x12+\x17] initialised ide\n" );
 	init_syscalls(); 	syscall_kputs( "[\x12+\x17] Initialised syscalls\n" );
 	init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
-	init_shell();
+	printf( "    Kernel init finished: %d ticks\n", get_tick());
+
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 	con_scroll_offset = 0;
-	//sleep_thread( 0xffffffff );
-
-	//for ( i = 0; i < 100; i++ )
-	create_thread( &test );
-	for ( i = 0; i < 3; i++ )
-		create_thread( &meh );
 
 	create_thread( &main_daemon );
-	create_thread( &user_daemon );
-	create_thread( &kshell );
-	//switch_to_usermode_jmp((unsigned long)&user_daemon );
+	create_thread( &kinit_prompt );
 	sleep_thread( 0xffffffff );
 }

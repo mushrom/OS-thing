@@ -1,6 +1,6 @@
 Obsidian os {#mainpage}
 ===========
-This is a small OS project, at the moment consisting of barebones kernel. It is a monolithic kernel atm, supporting basic multitasking, basic ipc, a vfs, initrd filesystem, usermode, and flat binaries.
+This is a small OS project, at the moment consisting of barebones kernel. It is a monolithic kernel atm, supporting basic multitasking, basic ipc, a vfs, initrd filesystem, usermode, and static ELF binaries.
 
 To build:
 ---------

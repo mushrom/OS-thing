@@ -17,7 +17,9 @@ KFILES	  += $(shell find sys kern lib fs mem drivers -name "*.[c,s]" )
 KFILES	  += $(shell ls *.c *.s )
 LINKFILES += $(shell echo $(KFILES) | sed "s/\.[c,h,s]/.o/g")
 
-all: kernel link extract-syms
+MODFILES   = $(shell find modules -name "*.[c]")
+
+all: kernel link extract-syms kmodules
 
 debug:
 	@echo "Kfiles: $(KFILES)"
@@ -56,6 +58,28 @@ extract-syms:
 	@$(OBJCOPY) --only-keep-debug $(KNAME).bin $(KNAME).sym
 	@$(STRIP) --strip-debug --strip-unneeded $(KNAME).bin
 	@echo "symbol file: $(KNAME).sym"
+	@echo -e "[\033[0;34mdone\033[0;0m]"
+
+kmodules:
+	@echo -e "[\033[0;34mCompiling modules...\033[0;0m]"
+	@$(AS) -felf modules/mrt0.s
+	@for thing in $(MODFILES); do \
+		OUTFILE=`echo $$thing | sed "s/\.[c,h,s]//"`; \
+		EXT=`echo $$thing | tail -c3`; \
+		RET=0; \
+		echo -e "Compiling $$thing...\r\c"; \
+		if [ $$EXT = .c ]; then \
+			$(CC) $(CFLAGS) -c $$thing -o $$OUTFILE.o; \
+			RET=$$?; \
+		fi; \
+		if [ $$RET -gt 0 ]; then \
+			echo -e "[\033[0;31merror\033[0;0m] $$thing -> $$OUTFILE"; \
+		else \
+			$(LD) -o $$OUTFILE.ko modules/mrt0.o $$OUTFILE.o obsidian-i586.sym; \
+			cp $$OUTFILE.ko ../init; \
+			echo -e "[\033[0;32mdone\033[0;0m] $$thing -> $$OUTFILE.ko"; \
+		fi; \
+	done
 	@echo -e "[\033[0;34mdone\033[0;0m]"
 
 test:

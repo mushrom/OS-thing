@@ -41,7 +41,7 @@ typedef struct dirp *(*opendir_func)( struct file_node * );
 typedef int (*closedir_func)( struct file_node * );
 typedef int (*mkdir_func)( struct file_node *, char *, int );
 typedef int (*close_func)( struct file_node * );
-typedef struct file_node *(*find_node_func)( struct file_node *, char *name );
+typedef struct file_node *(*find_node_func)( struct file_node *, char *name, unsigned int links );
 
 /*! \brief The internal file node structure, every file has one. */
 typedef struct file_node {
@@ -118,7 +118,9 @@ int  fs_ioctl( file_node_t *, unsigned long, ... );
 int   fs_open( file_node_t *, char *, int );
 int  fs_close( file_node_t * );
 int   fs_stat( file_node_t *, struct vfs_stat * );
-file_node_t *fs_find_node( file_node_t *, char * );
+int fs_mount( file_node_t *type, file_node_t *dir, int flags, void *data );
+int fs_unmount( file_node_t *dir, int flags );
+file_node_t *fs_find_node( file_node_t *, char *, unsigned int );
 
 struct dirp *fs_opendir( file_node_t * );
 int fs_closedir( file_node_t * );
@@ -129,14 +131,18 @@ struct dirent *fs_readdir( struct dirp *dir );
 struct dirp *vfs_opendir( file_node_t * );
 int vfs_closedir( file_node_t * );
 
-file_node_t *fs_find_path( char *path );
+file_node_t *fs_find_path( char *path, unsigned int links );
 int open( char *path, int flags );
 int close( int fd );
 int read( int fd, void *buf, unsigned long size );
 int write( int fd, void *buf, unsigned long size );
 struct dirp *fdopendir( int fd );
 struct dirent *readdir( int fd, struct dirp *dir );
+int mkdir( char *path, int mode );
 int chdir( char *path );
+int chroot( char *path );
 int lseek( int fd, long offset, int whence );
+int mount( char *type, char *dir, int flags, void *data );
+int unmount( char *dir, int flags );
 
 #endif

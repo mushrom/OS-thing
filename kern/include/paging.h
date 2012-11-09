@@ -4,6 +4,7 @@
 #include <isr.h>
 #include <stdint.h>
 #include <kmacros.h>
+#include <multiboot.h>
 #include <alloc.h>
 
 #define PAGE_USER 	4 	/* USER		*/
@@ -34,7 +35,7 @@ void set_page( unsigned long *address, unsigned long virtual, unsigned int permi
 void map_pages( unsigned long start, unsigned long end, unsigned int permissions, page_dir_t * );
 void free_pages( unsigned long start, unsigned long end, page_dir_t * );
 
-void init_paging();
+void init_paging( multiboot_header_t * );
 void set_page_dir( page_dir_t * );
 void flush_tlb();
 

@@ -115,8 +115,11 @@ int create_process( void (*function)( char **, char ** ), char **argv, char **en
 	init_task( new_task );
 	new_task->eip = (unsigned long)function;
 
-	PUSH( new_task->stack, av );
+	printf( "task stack: 0x%x\n", new_task->stack );
 	PUSH( new_task->stack, ep );
+	PUSH( new_task->stack, av );
+	printf( "task stack: 0x%x\n", new_task->stack );
+	printf( "task eip:   0x%x\n", new_task->eip );
 	
 	add_task( new_task );
 

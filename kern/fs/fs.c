@@ -8,7 +8,7 @@ vfs_file_header_t	files[ MAX_INODES ];
 
 int vfs_mkdir( file_node_t *, char *, int );
 int vfs_open ( file_node_t *, char *, int );
-file_node_t *vfs_find_node( file_node_t *node, char *name );
+file_node_t *vfs_find_node( file_node_t *node, char *name, unsigned int links );
 int vfs_read( file_node_t *node, void *buf, unsigned long size );
 int vfs_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset );
 int vfs_write( file_node_t *node, void *buf, unsigned long size );
@@ -40,7 +40,7 @@ void init_vfs( void ){ DEBUG_HERE
 	fs_closedir( fs_root );
 }
 
-file_node_t *fs_find_path( char *path ){
+file_node_t *fs_find_path( char *path, unsigned int links ){
 	extern task_t *current_task;
 	file_node_t *fp;
 	if ( strlen( path ) == 0 )
@@ -59,14 +59,24 @@ file_node_t *fs_find_path( char *path ){
 	} else {
 		fp = current_task->cwd;
 	}
-	return fs_find_node( fp, path );
+	return fs_find_node( fp, path, links );
 }
 
 int open( char *path, int flags ){
 	extern task_t *current_task;
-	file_node_t *fp = fs_find_path( path );
+	file_node_t *fp = fs_find_path( path, 1 );
 	unsigned long i = 0;
+	//int ret;
 	
+/*
+	for ( i = strlen( path ); i; i-- ){
+		if ( path[i] == '/' ){
+			path[i] = 0;
+			break;
+		}
+	}
+	ret = fs_open( current_task->cwd );
+*/
 	if ( !fp )
 		return -1;
 	if ( current_task->file_count >= MAX_FILES )
@@ -76,6 +86,7 @@ int open( char *path, int flags ){
 		if ( current_task->files[i] == 0 )
 			break;
 	}
+	
 	current_task->files[i] = (void *)kmalloc( sizeof( file_descript_t ), 0, 0 );
 	current_task->files[i]->file = fp;
 	current_task->files[i]->r_offset = 0;
@@ -164,11 +175,23 @@ struct dirent *readdir( int fd, struct dirp *dir ){
 int chdir( char *path ){
 	extern task_t *current_task;
 
-	file_node_t *fp = fs_find_path( path );
+	file_node_t *fp = fs_find_path( path, 1 );
 	if ( !fp )
 		return -1;
 
 	current_task->cwd = fp;
+
+	return 0;
+}
+
+int chroot( char *path ){
+	extern task_t *current_task;
+
+	file_node_t *fp = fs_find_path( path, 1 );
+	if ( !fp )
+		return -1;
+
+	current_task->root = fp;
 
 	return 0;
 }
@@ -208,9 +231,85 @@ int lseek( int fd, long offset, int whence ){
 
 	return current_task->files[fd]->r_offset;
 }
+
+int mkdir( char *path, int mode ){
+	extern task_t *current_task;
+
+	file_node_t *dir = fs_find_path( path, 1 );
+	char *file = 0;
+	int i;
+
+	if ( dir ) /* If the path exists, return */
+		return -1;
+
+	for ( i = strlen( path ); i > 0; i-- ){ /* Find first directory above the directory to make */
+		if ( path[i] == '/' ){
+			path[i] = 0;
+			file = path + i + 1;
+			break;
+		}
+	}
+	
+	if ( i ){ /* Found a directory in the path, try and find the node */
+		dir = fs_find_path( path, 1 );
+	} else { /* No directory/was root, search current directory or root */
+		file = path;
+		if ( file[0] == '/' ){
+			file++;
+			dir = fs_find_path( "/", 1 );
+		} else {
+			dir = fs_find_path( ".", 1 );
+		}
+	}
+	
+	if ( !dir )
+		return -1;
+
+	return fs_mkdir( dir, file, mode );
+}
+
+int mount( char *type, char *dir, int flags, void *data ){
+	file_node_t *type_fp, *dir_fp;
+
+	type_fp = fs_find_path( type, 1 );
+	dir_fp  = fs_find_path( dir, 1 );
+
+	if ( !dir_fp )
+		return -1;
+
+	if ( !type_fp ){
+		type_fp = fs_find_node( fs_root, type, 1 );
+		if ( !type_fp )
+			return -1;
+	}
+
+	return fs_mount( type_fp, dir_fp, flags, data );
+}
+
+int unmount( char *dir, int flags ){
+	file_node_t *dir_fp;
+
+	dir_fp  = fs_find_path( dir, 0 );
+	if ( !dir_fp )
+		return -1;
+
+	return fs_unmount( dir_fp, flags );
+}
+
+int fs_mount( file_node_t *type, file_node_t *dir, int flags, void *data ){
+	dir->mount = type;
+
+	return 0;
+}
+
+int fs_unmount( file_node_t *dir, int flags ){
+	dir->mount = 0;
+
+	return 0;
+}
 	
 
-file_node_t *vfs_find_node( file_node_t *node, char *name ){ DEBUG_HERE
+file_node_t *vfs_find_node( file_node_t *node, char *name, unsigned int links ){ DEBUG_HERE
 	int i = 0, has_subdir = 0;
 	file_node_t *ret = 0, *temp = node;
 	char *sub_dir = 0;
@@ -229,16 +328,20 @@ file_node_t *vfs_find_node( file_node_t *node, char *name ){ DEBUG_HERE
 			temp = ret;
 			if ( ret->mount ){
 				temp = ret->mount;
-				ret = temp;
+				//ret = temp;
 			}
 			if ( has_subdir ){ DEBUG_HERE
 				if ( temp->find_node ){ DEBUG_HERE
-					return temp->find_node( ret, sub_dir );
+					return temp->find_node( temp, sub_dir, links );
 				} else { DEBUG_HERE
 					return 0;
 				}
 			} else { DEBUG_HERE
-				return temp;
+				if ( links ){
+					return temp;
+				} else {
+					return ret;
+				}
 			}
 		}
 	}
@@ -326,7 +429,6 @@ int vfs_mkdir( file_node_t *node, char *name, int mode ){ DEBUG_HERE
 		fs_root[ vfs_i_count ].dirp  = (void *)kmalloc( sizeof( struct dirp ),   0, 0 );
 		memset( fs_root[vfs_i_count].dirp, 0, sizeof( struct dirp ));
 		fs_root[ vfs_i_count ].opendir 		= vfs_opendir;
-		fs_root[ vfs_i_count ].closedir 	= vfs_closedir;
 		fs_root[ vfs_i_count ].mkdir		= vfs_mkdir;
 		fs_root[ vfs_i_count ].find_node 	= vfs_find_node;
 		fs_root[ vfs_i_count ].open		= vfs_open;
@@ -355,24 +457,29 @@ int vfs_open( file_node_t *node, char *name, int mode ){ DEBUG_HERE
 				return 0;
 			}
 		}
-		unsigned long index = node->dirp->dir_ptr++;
-		node->dirp->dir[ index ] = (void *)kmalloc( sizeof( struct dirent ), 0, 0 );
-		memset( node->dirp->dir[index], 0, sizeof( struct dirent ));
-		node->dirp->dir[ index ]->inode = vfs_i_count;
-		memcpy( node->dirp->dir[ index ]->name, name, strlen( name ) + 1);
-		memcpy( fs_root[ vfs_i_count ].name, name, strlen( name ) + 1);
+		if ( mode & O_CREAT ){
+			unsigned long index = node->dirp->dir_ptr++;
+			node->dirp->dir[ index ] = (void *)kmalloc( sizeof( struct dirent ), 0, 0 );
+			memset( node->dirp->dir[index], 0, sizeof( struct dirent ));
+			node->dirp->dir[ index ]->inode = vfs_i_count;
+			memcpy( node->dirp->dir[ index ]->name, name, strlen( name ) + 1);
+			memcpy( fs_root[ vfs_i_count ].name, name, strlen( name ) + 1);
 
-		fs_root[ vfs_i_count ].inode 	= vfs_i_count;
-		fs_root[ vfs_i_count ].type 	= FS_FILE;
-		fs_root[ vfs_i_count ].read 	= vfs_read;
-		fs_root[ vfs_i_count ].pread 	= vfs_pread;
-		fs_root[ vfs_i_count ].write 	= vfs_write;
-		fs_root[ vfs_i_count ].pwrite 	= vfs_pwrite;
+			fs_root[ vfs_i_count ].inode 	= vfs_i_count;
+			fs_root[ vfs_i_count ].type 	= FS_FILE;
+			fs_root[ vfs_i_count ].read 	= vfs_read;
+			fs_root[ vfs_i_count ].pread 	= vfs_pread;
+			fs_root[ vfs_i_count ].write 	= vfs_write;
+			fs_root[ vfs_i_count ].pwrite 	= vfs_pwrite;
 
-		node->dirp->dir_count++;
-		vfs_i_count++;
+			node->dirp->dir_count++;
+			vfs_i_count++;
+			return 0;
+		} else {
+			return -1;
+		}
 	}
-	return 0;
+	return -1;
 }
 
 
@@ -461,9 +568,9 @@ int fs_stat ( file_node_t *node, struct vfs_stat *buf ){
 	return 0;
 }
 
-file_node_t *fs_find_node( file_node_t *node, char *name ){ DEBUG_HERE
+file_node_t *fs_find_node( file_node_t *node, char *name, unsigned int links ){ DEBUG_HERE
 	if ( node->dirp && node->find_node ){ DEBUG_HERE
-		return node->find_node( node, name );
+		return node->find_node( node, name, links );
 	} else { DEBUG_HERE
 		return 0;
 	}

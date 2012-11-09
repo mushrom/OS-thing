@@ -33,12 +33,14 @@
 #include <init_tables.h>
 #include <kb.h>
 #include <ide.h>
+#include <fat.h>
 
 #include <kconfig.h>
 #include <kshell.h>
 #include <kmacros.h>
 #include <common.h>
 #include <syscall.h>
+#include <module.h>
 
 unsigned int initial_esp; 			/**< esp at start, is set to \ref initial_stack */
 unsigned int g_errline = 0;			/**< Error line of last debug, see \ref kmacros.h */
@@ -60,9 +62,9 @@ void main_daemon( ){
 	ipc_msg_t msg;
 	int ret, meh;
 	while ( 1 ){
-		ret = syscall_get_msg( MSG_BLOCK, &msg );
+		ret = get_msg( MSG_BLOCK, &msg );
 		if ( ret == 0 ){
-			meh = 0xfffffff;
+			meh = 0xfffff;
 			switch ( msg.msg_type ){
 				case MSG_EXIT:
 					reboot();
@@ -72,6 +74,7 @@ void main_daemon( ){
 					while( meh-- );
 					break;
 			}
+			printf( "meh\n" );
 		}
 	}
 }
@@ -143,8 +146,10 @@ void kinit_prompt( void ){
 			}
 			if ( l == 4 ){
 				fd = syscall_open( args[i] + l + 1, 0 );
-				if ( fd < 0 )
-					PANIC( "Could not open init file" );
+				if ( fd < 0 ){
+					printf( "Could not open init file\n" );
+					break;
+				}
 
 				switch_to_usermode();
 				syscall_fexecve( fd, 0, 0 );
@@ -176,6 +181,8 @@ void kinit_prompt( void ){
 		}
 		input[i] = 0;
 		printf( "\n" );
+		if ( !i )
+			continue;
 		if ( input[0] == '!' ){
 			init_shell();
 			kshell();
@@ -185,6 +192,8 @@ void kinit_prompt( void ){
 				fd = 0;
 				printf( "Could not open file \"%s\".\n", input );
 			} else {
+				mkdir( "/user", 0777 );
+				chroot( "/user" );
 				switch_to_usermode();
 				syscall_fexecve( fd, 0, 0 );
 				syscall_exit(0);
@@ -212,22 +221,26 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 
 	if ( magic != 0x2BADB002 ){
-		kputs( "[\x14-\x17] Multiboot not found...\n" );
+		PANIC( "[\x14-\x17] Multiboot not found..." );
 	} else {
 		printf( "[\x12+\x17] Multiboot found, header at 0x%x\n", mboot );
-		if ( mboot->flags & 2 )
+		if ( mboot->flags & MULTIBOOT_FLAG_MEM ){
+			printf( "    mem low: %ukb, mem high: %ukb\n", mboot->mem_lower, mboot->mem_upper );
+		} else { 
+			PANIC( "Multiboot header has no mem map" );
+		}
+		if ( mboot->flags & MULTIBOOT_FLAG_CMDLINE ){
 			printf( "    cmd = %s\n", mboot->cmdline );
-		if ( mboot->mods_count ){
+		}
+		if ( mboot->mods_count && mboot->flags & MULTIBOOT_FLAG_MODS ){
 			initrd = (void *)*((int *)mboot->mods_addr);
 			initrd_size = *(unsigned int *)(mboot->mods_addr + 4 ) - (unsigned int)initrd;
 			printf( "    initrd size: %d bytes\n", initrd_size );
 
 			extern unsigned long placement;
-			//printf( "    old placement: 0x%x\n", placement );
-			placement = (*(int *)(mboot->mods_addr + 4 ) & 0xfffff000) + 0x1000;
-			//placement = *(int *)(mboot->mods_addr + 4 );
+			//placement = (*(int *)(mboot->mods_addr + 4 ) & 0xfffff000) + 0x1000;
+			placement = *(int *)(mboot->mods_addr + 4 );
 			//placement += *(int *)(mboot->mods_addr + 4 );
-			//placement += initrd_size;
 			printf( "    new placement: 0x%x\n", placement );
 		} else {
 			printf( "    No multiboot modules loaded\n" );
@@ -238,7 +251,7 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	init_tables(); 		printf( "[\x12+\x17] initialised tables\n" );
 	init_timer(TIMER_FREQ);	printf( "[\x12+\x17] Initialised timer to %uhz\n", TIMER_FREQ );
 	asm volatile ( "sti" );
-	init_paging(); 		printf( "[\x12+\x17] initialised paging\n" );
+	init_paging( mboot ); 		printf( "[\x12+\x17] initialised paging\n" );
 	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
 	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
 	if ( initrd ){
@@ -252,10 +265,15 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 				printf( "[\x12+\x17] initialised ide\n" );
 	init_syscalls(); 	syscall_kputs( "[\x12+\x17] Initialised syscalls\n" );
 	init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
+	//test_fatfs( "/dev/ide0", 63 * 512 );
 	printf( "    Kernel init finished: %d ticks\n", get_tick());
 
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
+	i = load_module( "/init/mod.ko", 0 );
+	if ( i )
+		printf( "Could not load module\n" );
 	con_scroll_offset = 0;
+
 
 	create_thread( &main_daemon );
 	create_thread( &kinit_prompt );

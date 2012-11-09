@@ -14,34 +14,37 @@ int cmd_count = 0;
 //int cwd = 0;
 shell_cmd_t commands[ CMD_LIMIT ];
 
-int  sh_test( int argc, char **argv );
-int  sh_help( int argc, char **argv );
-int sh_clear( int argc, char **argv );
-int  sh_list( int argc, char **argv );
-int sh_write( int argc, char **argv );
-int  sh_read( int argc, char **argv );
-int    sh_cd( int argc, char **argv );
-int  sh_atoi( int argc, char **argv );
-int sh_sleep( int argc, char **argv );
-int sh_debug( int argc, char **argv );
-int sh_alloc( int argc, char **argv );
-int sh_reboot(int argc, char **argv );
-int   sh_mem( int argc, char **argv );
-int    sh_ps( int argc, char **argv );
-int   sh_msg( int argc, char **argv );
-int sh_getmsg(int argc, char **argv );
-int  sh_kill( int argc, char **argv );
-int sh_mkdir( int argc, char **argv );
-int sh_uptime(int argc, char **argv );
-int   sh_exec( int argc, char **argv );
-int    sh_cat( int argc, char **argv );
+int  sh_test( 	int argc, char **argv );
+int  sh_help( 	int argc, char **argv );
+int sh_clear( 	int argc, char **argv );
+int  sh_list( 	int argc, char **argv );
+int sh_write( 	int argc, char **argv );
+int  sh_read( 	int argc, char **argv );
+int    sh_cd( 	int argc, char **argv );
+int  sh_atoi( 	int argc, char **argv );
+int sh_sleep( 	int argc, char **argv );
+int sh_debug( 	int argc, char **argv );
+int sh_alloc( 	int argc, char **argv );
+int sh_reboot(	int argc, char **argv );
+int   sh_mem( 	int argc, char **argv );
+int    sh_ps( 	int argc, char **argv );
+int   sh_msg( 	int argc, char **argv );
+int sh_getmsg(	int argc, char **argv );
+int  sh_kill( 	int argc, char **argv );
+int sh_mkdir( 	int argc, char **argv );
+int sh_uptime(	int argc, char **argv );
+int   sh_exec(	int argc, char **argv );
+int    sh_cat(	int argc, char **argv );
+int sh_mount( 	int argc, char **argv );
+int sh_unmount( int argc, char **argv );
+int sh_chroot(	int argc, char **argv );
 
 void init_shell( ){
 	register_shell_func( "ls", sh_list );
 	register_shell_func( "cd", sh_cd );
 	register_shell_func( "write", sh_write );
 	register_shell_func( "read", sh_read );
-	//register_shell_func( "mkdir", sh_mkdir );
+	register_shell_func( "mkdir", sh_mkdir );
 	register_shell_func( "clear", sh_clear );
 	register_shell_func( "debug", sh_debug );
 	register_shell_func( "help", sh_help );
@@ -58,6 +61,9 @@ void init_shell( ){
 	register_shell_func( "uptime", sh_uptime );
 	register_shell_func( "exec", sh_exec );
 	register_shell_func( "cat", sh_cat );
+	register_shell_func( "mount", sh_mount );
+	register_shell_func( "unmount", sh_unmount );
+	register_shell_func( "chroot", sh_chroot );
 }
 
 void register_shell_func( char *name, shell_func_t function ){
@@ -254,6 +260,18 @@ int sh_mkdir( int argc, char **argv ){
 }
 */
 
+int sh_mkdir( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+
+	int ret = syscall_mkdir( argv[1], 0777 );
+	if ( ret ){
+		printf( "Could not make directory\n" );
+		return 1;
+	}
+
+	return 0;
+}
+
 int    sh_cd( int argc, char **argv ){
 	//file_node_t *fp;
 	//int fd;
@@ -303,7 +321,7 @@ int sh_alloc( int argc, char **argv ){
 		string = (char *)kmalloc(strlen( data ), 0, &phys );
 		memcpy( string, data, strlen( data ) + 1);
 		printf( "0x%x:0x%x:%s\n", string, phys, string );
-		kfree( string );
+		//kfree( string );
 	}
 	return 0;
 }
@@ -414,10 +432,49 @@ int sh_cat( int argc, char **argv ){
 
 	return 0;
 }
+
+int sh_mount( int argc, char **argv ){
+	if ( argc < 3 ) return 1;
+
+	int ret = syscall_mount( argv[1], argv[2], 0, 0 );
+
+	if ( ret ){
+		printf( "Could not mount\n" );
+		return 1;
+	}
+	return 0;
+}
+
+int sh_unmount( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+
+	int ret = syscall_unmount( argv[1], 0 );
+
+	if ( ret ){
+		printf( "Could not unmount\n" );
+		return 1;
+	}
+	return 0;
+}
+
+int sh_chroot( int argc, char **argv ){
+	if ( argc < 2 ) return 1;
+
+	int ret = syscall_chroot( argv[1] );
+
+	if ( ret ){
+		printf( "Could not change root\n" );
+		return 1;
+	}
+	ret = syscall_chdir( "/" );
+	return ret;
+}
+
+
 #else
 
 void init_shell( ){ return; }
-void kshell( void ){ return; }
+void kshell( void ){ printf( "<built-in shell disabled>\n" );}
 
 #endif
 #endif

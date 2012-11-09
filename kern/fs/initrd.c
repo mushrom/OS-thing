@@ -11,7 +11,7 @@ unsigned long 	initrd_i_count = 0,
 		data_offset = 0;
 int initrd_read( file_node_t *node, void *buf, unsigned long size );
 int initrd_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset );
-file_node_t *initrd_find_node( file_node_t *node, char *name ); 
+file_node_t *initrd_find_node( file_node_t *node, char *name, unsigned int links ); 
 
 void init_initrd( initrd_header_t *header ){
 	if (!( header->magic == INITRD_MAGIC && header->nfiles )){
@@ -72,9 +72,14 @@ void init_initrd( initrd_header_t *header ){
 	data = (char *)header;
 		
 	extern file_node_t *fs_root;
-	file_node_t *temp = fs_find_node( fs_root, "init" );
+	file_node_t *temp = fs_find_node( fs_root, "init", 1 );
+	//file_node_t *temp = fs_find_path( "/init", 1 );
+	/*
 	if ( temp )
 		temp->mount = initrd_root;
+	*/
+
+	fs_mount( initrd_root, temp, 0, 0 );
 
 	/*
 	printf( "\x17%x:%x:%d\n", data, header, i );
@@ -84,7 +89,7 @@ void init_initrd( initrd_header_t *header ){
 
 }
 
-file_node_t *initrd_find_node( file_node_t *node, char *name ){ 
+file_node_t *initrd_find_node( file_node_t *node, char *name, unsigned int links ){ 
 	int i = 0, has_subdir = 0;
 	file_node_t *ret = 0;
 	char *sub_dir = 0;
@@ -103,7 +108,7 @@ file_node_t *initrd_find_node( file_node_t *node, char *name ){
 			//printf( "0x%x:%s:%d:0x%x\n", ret->read, ret->name, ret->inode, ret->mask );
 			if ( has_subdir ){ 
 				if ( node->find_node ){ 
-					return node->find_node( ret, sub_dir );
+					return node->find_node( ret, sub_dir, 1 );
 				} else { 
 					return 0;
 				}

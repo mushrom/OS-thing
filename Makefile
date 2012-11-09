@@ -2,7 +2,7 @@ ARCH=i586
 TARGET=$(ARCH)-elf
 MAKE=gmake
 EMULATOR=qemu
-EMU_FLAGS=-hda vdrive.hdd -s 
+EMU_FLAGS=-hda vdrive.hdd -hdb fattest.hdd -s 
 CROSS=$(shell pwd)/cross
 
 KNAME=obsidian-$(ARCH)

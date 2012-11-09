@@ -28,9 +28,16 @@ void init_devfs( void ){
 	devfs_root->closedir	= vfs_closedir;
 	devfs_root->find_node	= devfs_find_node;
 
-	temp = fs_find_node( fs_root, "dev" );
+	/*
 	if ( temp )
 		temp->mount = devfs_root;
+	*/
+	temp = fs_find_node( fs_root, "dev", 1 );
+	if (( fs_mount( devfs_root, temp, 0, 0 )) < 0 ){
+		printf( "    Could not mount devfs\n" );
+	} else {
+		printf( "    Mounted devfs\n" );
+	}
 	//temp->find_node		= devfs_find_node;
 
 	/* A small testing device, prints out a-z when read */
@@ -73,7 +80,7 @@ void devfs_register_device( file_node_t device ){
 	//printf( "    Added new device %s\n", devfs_nodes[ new_device->inode ]->name );
 }
 
-file_node_t *devfs_find_node( file_node_t *node, char *name ){ DEBUG_HERE 
+file_node_t *devfs_find_node( file_node_t *node, char *name, unsigned int links ){ DEBUG_HERE 
 	int i = 0, has_subdir = 0;
 	file_node_t *ret = 0;
 	char *sub_dir = 0;
@@ -91,7 +98,7 @@ file_node_t *devfs_find_node( file_node_t *node, char *name ){ DEBUG_HERE
 			ret = devfs_nodes[ node->dirp->dir[i]->inode ];
 			if ( has_subdir ){ DEBUG_HERE 
 				if ( node->find_node ){ DEBUG_HERE 
-					return node->find_node( ret, sub_dir );
+					return node->find_node( ret, sub_dir, 1 );
 				} else { DEBUG_HERE 
 					return 0;
 				}

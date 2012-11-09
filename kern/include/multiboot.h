@@ -15,6 +15,18 @@ enum {
 	MULTIBOOT_FLAG_VBE	= 0x400
 };
 
+enum { 
+	MULTIBOOT_MEM_AVAIL	= 1,
+	MULTIBOOT_MEM_RESERVE 	= 2
+};
+
+typedef struct multiboot_mem_map {
+	unsigned long size;
+	unsigned long long addr;
+	unsigned long long len;
+	unsigned long type;
+} __attribute__((packed)) multiboot_mem_map_t;
+
 typedef struct multiboot_header {
 	unsigned long flags;
 	unsigned long mem_lower;

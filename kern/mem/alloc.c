@@ -41,8 +41,8 @@ unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *
 		fplacement += 0x1000;
 	}
 	if ( physical ){
-		*physical = get_page( fplacement, kernel_dir );
-		printf( "Alloc'd physical, 0x%x:0x%x\n", fplacement, *physical );
+		*physical = get_page( fplacement, current_dir );
+		//printf( "Alloc'd physical, 0x%x:0x%x:0x%x\n", fplacement, *physical, get_page( fplacement, current_dir ));
 	}
 
 	addr = fplacement;

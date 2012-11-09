@@ -1,9 +1,11 @@
 ASFILES=*.s
 CRT=crt0.asm
-CFILES=*.c
+LIBFILES=syscall.c stdio.c
+CFILES=`find . -name "*.c"`
 LFILES=*.o
 LD=../cross/bin/i586-elf-ld
 CC=../cross/bin/i586-elf-gcc
+CFLAGS=-nodefaultlibs -nostartfiles -fno-builtin -I.
 
 all: bin
 
@@ -26,7 +28,7 @@ bin:
 	@for thing in $(CFILES); do \
 		OUTFILE=`echo $$thing | sed "s/\.[c,h,s]//"`; \
 		echo -e "Compiling $$thing...\r\c"; \
-		$(CC) -c $$thing -nodefaultlibs -nostartfiles; \
+		$(CC) $(CFLAGS) -c $$thing; \
 		RET=$$?; \
 		if [ $$RET -gt 0 ]; then \
 			echo -e "[\033[0;31merror\033[0;0m] $$thing -> $$OUTFILE"; \

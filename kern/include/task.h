@@ -9,7 +9,8 @@
 #include <elf.h>
 #include <common.h>
 
-#define KERNEL_STACK_SIZE 4096
+//#define KERNEL_STACK_SIZE 4096
+#define KERNEL_STACK_SIZE 0x1000
 #define MAX_MSGS 32
 #define MAX_FILES 32
 #define PUSH( stack, data ) { stack -= sizeof( data ); memcpy((void *)stack, &data, sizeof( data )); }

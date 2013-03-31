@@ -38,15 +38,21 @@ typedef struct task {
 	unsigned long time;
 	unsigned long last_time;
 	bool finished;
+	bool waiting;
 	char ret;
 	struct page_dir *dir;
 	struct task *next;
 	struct task *prev;
 	struct task *parent;
+	unsigned long child;
+	unsigned long child_count;
+	int child_status;
 
 	ipc_msg_t *msg_buf[MAX_MSGS];
 	unsigned char msg_ptr;
 	unsigned long msg_count;
+	char **argv;
+	char **envp;
 
 	struct file_node     *root;
 	struct file_node     *cwd;
@@ -56,7 +62,7 @@ typedef struct task {
 } task_t;
 
 void init_tasking( );
-int  create_process( void (*)(char **, char **), char **, char ** );
+int  create_process( void (*)(int, char **, char **), char **, char ** );
 int  create_thread( void (*)());
 int  kill_thread( unsigned long pid );
 void sleep_thread( unsigned long time );
@@ -76,6 +82,7 @@ int getpid( void );
 int exit( char status );
 int fexecve( int fd, char **argv, char **envp );
 int load_flat_bin( int fd );
+int wait( int * );
 
 task_t *get_pid_task( unsigned long pid );
 task_t *init_task( task_t *task );

@@ -3,12 +3,12 @@
 
 #include <paging.h>
 extern unsigned long placement;
-unsigned long *page_stack, page_ptr = 0, npages = 0, mem_end = 0x1000000; /*32MB limit hardcoded for now*/
+unsigned long *page_stack, page_ptr = 0, stack_bottom = 0, npages = 0, mem_end = 0x1000000; 
 page_dir_t *kernel_dir = 0, *current_dir = 0;
 page_table_t *clone_table( page_table_t *src, unsigned long *phys );
 //page_dir_t *clone_page_dir( page_dir_t *src );
 extern void copy_page_phys( unsigned long, unsigned long );
-extern struct kmemnode *kheap;
+extern struct heap *kheap;
 
 /** \brief Set the page directory 
  * @param dir Pointer to the page directory to switch to
@@ -42,29 +42,43 @@ void page_fault_handler( registers_t *regs ){
 	dump_registers( regs );
 	printf( "pid: %d\n", getpid());
 	end_bad_task( );
+	PANIC( "Page fault" );
 }
 
 /** \brief Push a page onto the page stack
  * @param address The address to push on to stack
  */
 void push_page( unsigned long address ){
-	page_stack[ page_ptr++ ] = address & 0xfffff000;
+		//printf( "pushed page 0x%x, %d:%d\n", address, page_ptr, npages );
+		page_stack[ page_ptr++ ] = address & 0xfffff000;
 }
 
 /** \brief Pop a page off the page stack
  * @return The page address if successful, will panic the kernel otherwise
  */
 unsigned long pop_page( void ){
-	if ( page_ptr ){
+	if ( page_ptr > stack_bottom ){
+		/*
 		if ( !page_stack[ page_ptr - 1] && page_ptr < 4000 ){
 			PANIC( "Bad!" );
 			while( 1 ) asm ("hlt");;
 		}
+		*/
 		return page_stack[ --page_ptr ];
 	} else {
 		PANIC( "out of free pages" );
+		while( 1 ) asm ("hlt");;
 	}
 	PANIC( "Why am I here? :(" );
+	return 0;
+}
+
+unsigned long pop_bottom_page( void ){
+	if ( stack_bottom < npages )
+		return page_stack[ stack_bottom++ ];
+	else 
+		PANIC( "out of free pages" );
+
 	return 0;
 }
 
@@ -75,10 +89,19 @@ unsigned long pop_page( void ){
  */
 void check_pstack( void ){
 	int i;
-	for ( i = 0; i < npages; i++ ){
-		if ( !page_stack[i] && page_ptr < 4096 ){
-			printf( "[\x14-\x17]Failed stack check!\n" );
+	for ( i = 0; i < npages - 200; i++ ){
+		if ( !page_stack[i] ){
+			printf( "[\x14-\x17] Failed page stack check!\n" );
 			printf( "Bad page %d, 0x%x!\n", i, &page_stack[i] );
+			printf( "before: 0x%x 0x%x 0x%x 0x%x\n"
+				"after : 0x%x 0x%x 0x%x 0x%x\n",
+					page_stack[i-1], page_stack[i-2], page_stack[i-3], page_stack[i-4],
+					page_stack[i+1], page_stack[i+2], page_stack[i+3], page_stack[i+4]
+			);
+					
+			page_stack[i] = 1;
+			if ( page_stack[i] )
+				printf( "could write to stack\n" );
 			PANIC( "Panicing, debug this." );
 			while( 1 ) asm( "hlt" );
 		}
@@ -101,11 +124,11 @@ void map_page( unsigned long address, unsigned int permissions, page_dir_t *dir 
 		dir->table_addr[ low_index ] = temp | permissions;
 	}
 	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] & 0xfffff000);
-	if ( !dir->tables[ low_index ]->address[ high_index % 1024 ] )
-		dir->tables[ low_index ]->address[ high_index % 1024 ] = pop_page();
+	if ( !dir->tables[ low_index ]->address[ high_index ] )
+		dir->tables[ low_index ]->address[ high_index ] = pop_page();
 
-	dir->tables[ low_index ]->address[ high_index % 1024 ] |= permissions;
-	//printf( "[mappage] tables 0: 0x%x, low index: %d, indexed: 0x%x\n", dir->tables[768], low_index, dir->tables[low_index] );
+	dir->tables[ low_index ]->address[ high_index ] |= permissions;
+	//printf( "    [mappage] 0x%x, 0x%x:0x%x \n", dir->tables[low_index], address, dir->tables[ low_index ]->address[ high_index ] );
 
 	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] | permissions );
 #ifdef P_STACKCHECK
@@ -121,6 +144,7 @@ void map_page( unsigned long address, unsigned int permissions, page_dir_t *dir 
 unsigned long get_page( unsigned long address, page_dir_t *dir ){
 	unsigned long 	low_index = address >> 22,
 			high_index  = address >> 12 & 0x3ff,
+			i,
 			ret_addr;
 	page_table_t *temp;
 
@@ -129,6 +153,10 @@ unsigned long get_page( unsigned long address, page_dir_t *dir ){
 		return 0;
 
 	ret_addr = (unsigned long)temp->address[ high_index % 1024 ];
+
+#ifdef P_STACKCHECK
+	check_pstack();
+#endif
 
 	return ret_addr;
 }
@@ -178,49 +206,93 @@ void init_paging( multiboot_header_t *mboot_h ){
 	unsigned long address	= 0, i;
 	page_dir_t   *kernel_dir	  = (void *)kmalloc_e( sizeof( page_dir_t ), 1, &address );
 		      kernel_dir->address = (void *)address;
+
 	npages			= mem_end / PAGE_SIZE;
 	page_stack 	 	= (void *)kmalloc_e( npages * 4 + 1, 1, 0 );
-
-	for ( i = mem_end; i + PAGE_SIZE > 0; i -= PAGE_SIZE )
-		push_page( i );
+/*
+	npages 			= ( mboot_h->mem_lower + mboot_h->mem_upper ) / 4;
+	page_stack 	 	= (void *)kmalloc_e(( npages * 4 ) + ( mem_end / PAGE_SIZE * 4 ) + 1, 1, 0 );
+	memset( page_stack, 0, ( npages * 4 ) + ( mem_end / PAGE_SIZE * 4 ) + 1 );
+*/
+	//printf( "    0x%x\n", ( npages * 4 ) + ( mem_end / PAGE_SIZE * 4 ) + 1 );
+	//usleep( 2000 );
+	//page_ptr 		= npages;
 
 	if ( mboot_h->flags & MULTIBOOT_FLAG_MMAP ){
-		multiboot_mem_map_t *mmap = (multiboot_mem_map_t *)mboot_h->mmap_addr;
-		printf( "    mmap: 0x%x, addr: 0x%x,len: 0x%x\n", mmap, mboot_h->mmap_addr, mboot_h->mmap_length );
+/*
+		multiboot_mem_map_t *mmap;
+     
+		printf ("mmap_addr = 0x%x, mmap_length = 0x%x\n",
+			(unsigned) mboot_h->mmap_addr, (unsigned) mboot_h->mmap_length);
+		for (mmap = (multiboot_mem_map_t *) mboot_h->mmap_addr; (unsigned long) mmap < mboot_h->mmap_addr + 
+			mboot_h->mmap_length; mmap = (multiboot_mem_map_t *)((unsigned long) mmap + 
+				mmap->size + sizeof( mmap->size ))){
 
-		for ( ; (unsigned long)mmap < mboot_h->mmap_addr + mboot_h->mmap_length;
-				 mmap = mmap + mmap->size + sizeof( mmap->size )){
-			printf( "    size: 0x%x\tbase: 0x%x%x\n"
-				"    len:  0x%x%x\ttype: 0x%x\n"
-				"    rsize: 0x%x\tmmap: 0x%x\n", 
-					mmap->size, 
-					mmap->addr >> 32, mmap->addr & 0xffffffff,
-					mmap->len  >> 32, mmap->len  & 0xffffffff, 
-					mmap->type,	  sizeof( mmap ),
-					mmap );
+			if ( mmap->type == 1 ){
+				for ( i = mmap->addr_high; i < mmap->addr_high + mmap->len_high - PAGE_SIZE; i += PAGE_SIZE ){
+					if ( i > mem_end ){
+						push_page( i );
+						//printf( "pushed page 0x%x:%d\n", i, page_ptr );
+					}
+				}
+			}
 		}
-		printf( "    mmap: 0x%x\n", mmap );
+*/
 	} else {
 		PANIC( "Have no mmap" );
 	}
+	for ( i = mem_end; i + PAGE_SIZE > 0; i -= PAGE_SIZE )
+		push_page( i );
 
 	for ( i = 1; i < 1024; i++ )
 		kernel_dir->tables[i] = 0;
 
-	check_pstack();
-	printf( "    Checking stack...\n" );
+/*
+	for ( i = 0; i < 100; i++ )
+	printf( "Test: %d, 0x%x\n", npages, pop_page());
+*/
+	//printf( "Test: %d, 0x%x, 0x%x\n", npages, pop_page(),		pop_page());
 
+#ifdef P_STACKCHECK
+	printf( "    [1] Checking stack...\n" );
+	check_pstack();
+#endif
+		
 	/* "PAGE_SIZE * 10" is to provide 40kb of heap for kmalloc_e */
-	map_pages( 0,		placement + PAGE_SIZE * 10, PAGE_USER | PAGE_PRESENT, kernel_dir );
+	map_pages( 0, placement + PAGE_SIZE * 250, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
+#ifdef P_STACKCHECK
+	printf( "    [2] Checking stack...\n" );
+	check_pstack();
+#endif
 	map_pages( KHEAP_START, KHEAP_START + KHEAP_SIZE,   PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
+#ifdef P_STACKCHECK
+	printf( "    [3] Checking stack...\n" );
+	check_pstack();
+#endif
 
 	register_interrupt_handler( 0xe, page_fault_handler );
 	kernel_dir->address = (void *)((unsigned long)kernel_dir->address | 7);
+	//printf( "Test: %d, 0x%x, 0x%x\n", npages, pop_page(), pop_page());
+//	while( 1 );
+
+#ifdef P_STACKCHECK
+	printf( "    [4] Checking stack...\n" );
+	check_pstack();
+#endif
+
 	set_page_dir( kernel_dir );
 
 	kheap = (void *)init_heap( KHEAP_START, KHEAP_SIZE, kernel_dir );
 	printf( "    %d total pages, %d allocated for kernel (%d free, last at 0x%x)\n", 
 			npages, npages - page_ptr, page_ptr, address );
+	printf( "    placement: 0x%x\n", placement );
+
+#ifdef P_STACKCHECK
+	printf( "    Checking stack...\n" );
+	check_pstack();
+#endif
+
+	flush_tlb();
 
 /*
 	current_dir = clone_page_dir( kernel_dir );
@@ -233,6 +305,7 @@ void init_paging( multiboot_header_t *mboot_h ){
 	}
 	
 	set_page_dir( current_dir );
+
 	printf( "Switched page directory\n" );
 */
 }
@@ -258,13 +331,13 @@ page_table_t *clone_table( page_table_t *src, unsigned long *phys_addr ){
 page_dir_t *clone_page_dir( page_dir_t *src ){
 	unsigned long phys, offset, i;
 
-	page_dir_t *dir = (page_dir_t *)kmalloc( sizeof( page_dir_t ), 1, &phys );
+	page_dir_t *dir = (page_dir_t *)kmalloc_e( sizeof( page_dir_t ), 1, &phys );
 	memset( dir, 0, sizeof( page_dir_t ));
 
 	offset = (unsigned long)dir->table_addr - (unsigned long)dir;
 	dir->address = (void *)phys + offset;
 
-	//printf( "New page dir, offset: %d, address: 0x%x:0x%x\n", offset, dir, dir->address );
+	//printf( "New page dir, offset: %d, address: 0x%x:0x%x:0x%x\n", offset, dir, dir->address, phys );
 	//usleep( 2000 );
 
 	for ( i = 0; i < 1024; i++ ){

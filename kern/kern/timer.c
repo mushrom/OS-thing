@@ -33,7 +33,7 @@ unsigned long get_tick( void ){
 	return tick;
 }
 
-void wait( uint32_t seconds ){
+void sleep( uint32_t seconds ){
 	uint32_t limit = seconds * current_freq;
 	unsigned long mark;
 	mark = tick;

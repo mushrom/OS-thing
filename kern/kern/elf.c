@@ -40,7 +40,7 @@ int load_elf( int fd, char **argv, char **envp ){
 		//printf( "[debug] Is little-endian\n" );
 	//else return -1;
 	
-	printf( "[debug] entry: 0x%x\tsections: 0x%x\n", elf_header.e_entry, elf_header.e_shnum );
+	//printf( "[debug] entry: 0x%x\tsections: 0x%x\n", elf_header.e_entry, elf_header.e_shnum );
 	//printf( "[debuf] program header offset: 0x%x, %d pheads, size: %d\n", 
 	//		elf_header.e_phoff, elf_header.e_phnum, elf_header.e_phentsize );
 	page_dir_t *new_dir = clone_page_dir( current_task->dir );
@@ -49,8 +49,10 @@ int load_elf( int fd, char **argv, char **envp ){
 	for ( i = 0; i < elf_header.e_phnum; i++ ){
 		lseek( fd, elf_header.e_phoff + ( i * elf_header.e_phentsize ), 0 );
 		read( fd, &phbuf, elf_header.e_phentsize );
+	/*
 	printf( "[debug] Phead type: 0x%x, vaddr: 0x%x, offset: 0x%x, rsize: 0x%x, vsize: 0x%x\n", 
 		phbuf.p_type, phbuf.p_vaddr, phbuf.p_offset, phbuf.p_filesz, phbuf.p_memsz );
+	*/
 
 		buf = (char *)kmalloc( phbuf.p_filesz, 0, 0 );
 		lseek( fd, phbuf.p_offset, 0 );
@@ -59,7 +61,7 @@ int load_elf( int fd, char **argv, char **envp ){
 		map_pages( phbuf.p_vaddr, phbuf.p_vaddr + phbuf.p_memsz, 7, new_dir );
 		flush_tlb();
 		//set_page_dir( new_dir );
-		memcpy((void *)phbuf.p_vaddr, buf, phbuf.p_filesz );
+		//memcpy((void *)phbuf.p_vaddr, buf, phbuf.p_filesz );
 	}
 
 	create_process((void *)elf_header.e_entry, argv, envp );

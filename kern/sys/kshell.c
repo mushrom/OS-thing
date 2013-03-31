@@ -121,6 +121,7 @@ void kshell( void ){
 			}
 		}
 		cmd = args[0];
+		args[j] = 0;
 
 		/* Find command */
 		for ( j = 0; j < cmd_count; j++ ){
@@ -135,7 +136,10 @@ void kshell( void ){
 			return;
 		}
 		if ( !cmd_found && strlen( args[0] )){
-			printf( "Unknown command: \"%s\"\n", args[0] );
+			if (( i = syscall_open( args[0], 1 )) < 0 || syscall_fexecve( i, args, 0 ))
+				printf( "Unknown command: \"%s\"\n", args[0] );
+			else 
+				wait( &i );
 		}
 	}
 }
@@ -298,7 +302,7 @@ int sh_sleep( int argc, char **argv ){
 
 	while ( i-- ){
 		printf( "Resuming in %d seconds..\r", i + 1 );
-		wait( 1 );
+		sleep( 1 );
 	}
 	printf( "\n" );
 
@@ -320,8 +324,9 @@ int sh_alloc( int argc, char **argv ){
 		unsigned long phys;
 		string = (char *)kmalloc(strlen( data ), 0, &phys );
 		memcpy( string, data, strlen( data ) + 1);
-		printf( "0x%x:0x%x:%s\n", string, phys, string );
-		//kfree( string );
+		printf( "0x%x:0x%x:%s", string, phys, string );
+		kfree( string );
+		printf( " (freed)\n" ); 
 	}
 	return 0;
 }
@@ -346,7 +351,9 @@ int   sh_msg( int argc, char **argv ){
 	ipc_msg_t *buf = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0);
 	buf->msg_type = MSG_STATUS;
 	buf->sender = getpid();
-	if ( argc > 2 ) buf->msg_type = atoi( argv[2] );
+
+	if ( argc > 2 ) 
+		buf->msg_type = atoi( argv[2] );
 
 	char res = send_msg( atoi(argv[1]), buf );
 	if ( res ){
@@ -398,6 +405,7 @@ int   sh_exec( int argc, char **argv ){
 		printf( "Could not open file\n" );
 	}
 
+	printf( "[shell] argv[0]: 0x%x\n", argv[0] );
 	ret = syscall_fexecve( fp, argv, 0 );
 	if ( ret < 0 ){
 		printf( "Could not execute file\n" );

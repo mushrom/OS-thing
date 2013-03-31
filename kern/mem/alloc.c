@@ -1,3 +1,27 @@
+/* Quick notes about the allocator:
+ *
+ *  - Uses binary trees to find a free space. This is just a quick and dirty
+ *    allocator, and should be replaced in the future.
+ *
+ *  - The memory used for every allocation is the closest >= power of 2 to the
+ *    size, plus 4 bytes for the leaf. Keep this in mind if allocating powers
+ *    of 2 and you don't need all of it, allocating 16 bytes will allocate a
+ *    total of 32 bytes of memory.
+ *
+ *  - It can only double in size when resizing the tree.
+ *    This is because when resizing, the previous root becomes a leaf of the
+ *    new root, and the leaves must be half of the total size of the parent.
+ *
+ *  - Because of this, the maximum allocation size without resizing is half
+ *    the memory of the root. This shouldn't be a problem. 
+ *
+ *  - The minimum allocation size is the size of a leaf, which atm is 4 bytes.
+ *    This means the smallest allocation will take up 8 bytes of heap.
+ *
+ *  - Because it scales by powers of 2, aligning to page boundaries is easy.
+ *
+ */
+
 #ifndef _kernel_alloc_c
 #define _kernel_alloc_c
 #include <alloc.h>
@@ -5,7 +29,6 @@
 extern void *end;
 unsigned long placement = (unsigned long)&end;
 unsigned long fplacement = (unsigned long)KHEAP_START; heap_t *kheap = 0;
-unsigned int	block_size = sizeof( kmemnode_t );
 extern page_dir_t *current_dir, *kernel_dir;
 unsigned long memused = 0;
 
@@ -16,10 +39,10 @@ unsigned long kmalloc( unsigned long size, unsigned int align, unsigned long *ph
 		return kmalloc_e( size, align, physical );
 }
 
+/** Early kernel malloc function, allocates physical memory.	
+ *  Should not be used after paging is enabled, and should be used sparingly,
+ *  as there's no way to free the memory.	*/
 unsigned long kmalloc_e( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
-	/* Early kernel malloc function, allocates physical memory.	
- 	 * Should not be used after paging is enabled, and should be used sparingly,
- 	 * as there's no way to free the memory	*/
 	unsigned long addr;
 	if ( align && ( placement & 0xfff )){ DEBUG_HERE
 		placement &= 0xfffff000;
@@ -33,100 +56,78 @@ unsigned long kmalloc_e( unsigned long size, unsigned int align, unsigned long *
 	return addr;
 }
 
-unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
-	/* Final malloc function, should only be used after paging is enabled. */
-	int addr;
-	if ( align && ( fplacement & 0xfff )){
-		fplacement &= 0xfffff000;
-		fplacement += 0x1000;
-	}
-	if ( physical ){
-		*physical = get_page( fplacement, current_dir );
-		//printf( "Alloc'd physical, 0x%x:0x%x:0x%x\n", fplacement, *physical, get_page( fplacement, current_dir ));
+unsigned long find_free_node( kmem_node_t *node, unsigned long node_size, unsigned long size, unsigned long align ){
+	unsigned long ret = 0;
+	kmem_node_t *temp = node;
+	int s = node_size / 2;
+	temp += s;
+
+	//printf( "entered new ff: node=0x%x temp=0x%x\n", node, temp );
+	if ( s <= KHEAP_MIN_ALLOC || ( temp->magics == KHEAP_MAGIC && node->magics == KHEAP_MAGIC ))
+		return 0;
+
+	if ( size < s / 2 ){
+		if ((	ret = find_free_node( temp, s, size, align )) ||
+		    (	ret = find_free_node( node, s, size, align )))
+			return ret;
 	}
 
-	addr = fplacement;
-	fplacement += size;
-	memused += size;
-	return addr;
-	/*
-	unsigned int found_free = 0, i = 0;
-	kmemnode_t *memptr = kheap->memptr;
-	kmemnode_t *memmove = memptr;
-	kmemnode_t *ret;
-	memptr = kheap->memroot;
-	//printf( "[mem] 1:" );
-	while ( !found_free ){
-		if ( memptr->size == 0 ){
-			memmove = memptr;
-			for ( i = 0; i < size; ){
-				if ( memmove->next->size == 0 ){
-					i += block_size;
-					memmove = memmove->next;
-				} else {
-					i = 0;
-					break;
-				}
-			}
-			if ( i ){
-				ret = memptr->next;
-				memptr->next = memmove->next;
-				memptr->next->prev = memptr;
-				memptr->size = i;
-				found_free = 1;
-				break;
-			}
-		} else {
-			memptr = memptr->next;
-		}
+	if ( temp->magics != KHEAP_MAGIC ){
+		temp->magics = KHEAP_MAGIC;
+		return (unsigned long)temp + sizeof( kmem_node_t );
+	} else if ( node->magics != KHEAP_MAGIC ){
+		node->magics = KHEAP_MAGIC;
+		return (unsigned long)node + sizeof( kmem_node_t );
 	}
-	memused += i + block_size;
-	//printf( "[mem] 2 " );
+	
+	return 0;
+}
+
+/* Final malloc function, should be used after paging is enabled. */
+unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
+	unsigned long ret = 0;
+	memused += size + sizeof( kmem_node_t );
+
+	while (( ret = find_free_node((kmem_node_t *)kheap->root, kheap->size, size + sizeof( kmem_node_t ), align )) == 0 )
+		expand( kheap );
+
+	//printf( "ret: 0x%x\n", ret );
+	if ( physical )
+		*physical = get_page( ret, current_dir );
+	
 	return (unsigned long)ret;
-	*/
 }
 
 void kfree( void *ptr ){
-	kmemnode_t *memptr  = ptr;
-	kmemnode_t *memmove = ptr;
-	printf( "%s: ", memmove );
-
-	memmove = memptr - block_size;
-	if ( memmove->magics == KHEAP_MAGIC && memmove->size != 0 )
-		printf( "Can free block %d, magic: 0x%x, size: 0x%x bytes: %s\n", 
-			memmove->next - memmove, memmove->magics, memmove->size, (char *)memmove + block_size );
-	else 
-		printf( "Corrupted block at 0x%x->0x%x! (magic: 0x%x, size 0x%x)\n", 
-			memmove, memmove->next, memmove->magics, memmove->size );
+	kmem_node_t *p = ptr - sizeof( kmem_node_t );
+	if ( kheap ){
+		if ( p->magics == KHEAP_MAGIC ){
+			p->magics = KHEAP_FREED;
+		} else {
+			printf( "Could not free pointer 0x%x.\n", ptr );
+			if ( p->magics == KHEAP_FREED )
+				printf( "Likely a double-freed pointer.\n" );
+			PANIC( "bad free\n" );
+		}
+	}
 }
 
 unsigned long get_memused( void ){
 	return memused;
 }
 
+/** Note: This assumes the memory of param size is already mapped to pages. */
 struct heap *init_heap( unsigned long start, unsigned long size, page_dir_t *dir ){ DEBUG_HERE
-	unsigned long 	//i = 0,
-			block_c = 0;
-	heap_t *heap = (void *)kmalloc( sizeof( heap_t ), 0, 0 );
-	heap->memmove = heap->memptr = heap->memroot = (void *)start;
-	kmemnode_t *memptr = heap->memptr;
-
-	for ( memptr = (void *)start; (unsigned long)memptr < start + size; block_c++ ){ DEBUG_HERE
-	//for ( i = start; i < start + size; i += block_size, block_c++ ){ DEBUG_HERE
-		/*
-		memptr = i;
- 		memptr->next = i + block_size;
-		memptr->prev = i - block_size;
-		*/
- 		memptr->next = memptr + block_size;
-		memptr->prev = memptr - block_size;
-		memptr->size = 0;
-		memptr->magics = KHEAP_MAGIC;
-		//printf( "Alloced block %d, 0x%x->0x%x, %x\n", memptr->next-memptr, memptr, memptr->next, memptr->magics );
-		memptr = memptr->next;
-	}
-	printf( "    initialised heap, 0x%x, block size: %d bytes, %d blocks\n", heap->memroot, block_size, block_c );
+	heap_t *heap = (void *)kmalloc_e( sizeof( heap_t ), 0, 0 );
+	memset( heap, 0, sizeof( heap_t ));
+	heap->magics = KHEAP_MAGIC;
+	heap->size   = size / 4;
+	heap->root   = (void *)start;
 	return (struct heap *)heap;
+}
+
+void expand( heap_t *heap ){
+	PANIC( "Expand not implemented yet." );
 }
 
 #endif

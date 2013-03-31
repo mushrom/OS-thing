@@ -75,12 +75,13 @@ kmodules:
 		if [ $$RET -gt 0 ]; then \
 			echo -e "[\033[0;31merror\033[0;0m] $$thing -> $$OUTFILE"; \
 		else \
-			$(LD) -o $$OUTFILE.ko modules/mrt0.o $$OUTFILE.o obsidian-i586.sym; \
+			$(LD) -o $$OUTFILE.ko modules/mrt0.o $$OUTFILE.o; \
 			cp $$OUTFILE.ko ../init; \
 			echo -e "[\033[0;32mdone\033[0;0m] $$thing -> $$OUTFILE.ko"; \
 		fi; \
 	done
 	@echo -e "[\033[0;34mdone\033[0;0m]"
+	#$(LD) -o $$OUTFILE.ko modules/mrt0.o $$OUTFILE.o obsidian-i586.sym; \
 
 test:
 	qemu -kernel $(KNAME).bin

@@ -56,6 +56,8 @@ file_node_t *fs_find_path( char *path, unsigned int links ){
 		if ( strlen( path ) == 1 )
 			return fp;
 		path++;
+		if ( path[0] == '/' )
+			path++;
 	} else {
 		fp = current_task->cwd;
 	}
@@ -194,6 +196,14 @@ int chroot( char *path ){
 	current_task->root = fp;
 
 	return 0;
+}
+
+int lstat( char *path, struct vfs_stat *buf ){
+	file_node_t *fp = fs_find_path( path, 1 );
+	if ( !fp )
+		return -1;
+
+	return fs_stat( fp, buf );
 }
 
 int lseek( int fd, long offset, int whence ){

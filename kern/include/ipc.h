@@ -16,8 +16,8 @@ char *msg_lookup( unsigned int );
 typedef struct ipc_msg {
 	unsigned long msg_type;
 	unsigned long sender;
-	unsigned long buf_size;
-	void *buf;
+	unsigned long seq;
+	char data[4];
 } ipc_msg_t;
 
 #endif

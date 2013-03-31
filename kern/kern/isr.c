@@ -43,6 +43,7 @@ void end_bad_task( void ){
 	
 	if ( getpid() == 1 )
 		PANIC( "First thread faulted, cannot end." );
+
 	exit_thread();
 #else
 	PANIC( "Kernel panic" );

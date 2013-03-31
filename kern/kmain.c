@@ -34,9 +34,9 @@
 #include <kb.h>
 #include <ide.h>
 #include <fat.h>
+#include <serial.h>
 
-#include <kconfig.h>
-#include <kshell.h>
+#include <kconfig.h> #include <kshell.h>
 #include <kmacros.h>
 #include <common.h>
 #include <syscall.h>
@@ -47,6 +47,9 @@ unsigned int g_errline = 0;			/**< Error line of last debug, see \ref kmacros.h 
 extern unsigned short con_scroll_offset;	/**< How many lines to skip while scrolling */
 page_dir_t *kernel_dir;				/**< kernel page directory */
 struct multiboot_header *g_mboot_header = 0;
+
+int debug_file = -1;
+int stdout_file = -1;
 
 #ifndef NO_DEBUG
 /** File of last debug, see \ref kmacros.h */
@@ -114,6 +117,7 @@ void meh( ){
 	exit_thread();
 }
 
+/** \brief Initialises userland. */
 void kinit_prompt( void ){
 	char input[256];
 	char *initstr = "init";
@@ -125,10 +129,15 @@ void kinit_prompt( void ){
 	    l 	= 0,
 	    i 	= 0;
 
+	mkdir( "/user", 0777 );
+	//mkdir( "/user/dev", 0777 );
+	//mount( "/dev", "/user/dev", 0, 0 );
+
 	/* Check to see if the init is specified in multiboot command line... */
 	if ( g_mboot_header && g_mboot_header->flags & 2 ){
 		cmd = (void *)g_mboot_header->cmdline;
 		args[0] = (char *)&input;
+		/* split multiboot cmd line up */
 		for ( j = 1, i = 0; cmd[i] && i < 256 && j < 16; i++ ){
 			input[i] = cmd[i];
 			if ( input[i] == ' ' ){
@@ -137,6 +146,7 @@ void kinit_prompt( void ){
 			}
 		}
 		input[i] = 0;
+		args[j] = 0;
 		for ( l = i = 0; i < j; i++ ){
 			for ( l = 0; args[i][l] && args[i][l] != '='; l++ ){
 				if ( args[i][l] != initstr[l] ){
@@ -156,8 +166,6 @@ void kinit_prompt( void ){
 				syscall_exit( 0 );
 			}
 		}
-
-			
 	}
 	memset( input, 0, 256 );
 
@@ -192,8 +200,7 @@ void kinit_prompt( void ){
 				fd = 0;
 				printf( "Could not open file \"%s\".\n", input );
 			} else {
-				mkdir( "/user", 0777 );
-				chroot( "/user" );
+				/* chroot( "/user" ); */
 				switch_to_usermode();
 				syscall_fexecve( fd, 0, 0 );
 				syscall_exit(0);
@@ -234,7 +241,7 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 		}
 		if ( mboot->mods_count && mboot->flags & MULTIBOOT_FLAG_MODS ){
 			initrd = (void *)*((int *)mboot->mods_addr);
-			initrd_size = *(unsigned int *)(mboot->mods_addr + 4 ) - (unsigned int)initrd;
+			initrd_size = *(int *)(mboot->mods_addr + 4 ) - (unsigned int)initrd;
 			printf( "    initrd size: %d bytes\n", initrd_size );
 
 			extern unsigned long placement;
@@ -248,10 +255,11 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 		g_mboot_header = mboot;
 	}
 
-	init_tables(); 		printf( "[\x12+\x17] initialised tables\n" );
-	init_timer(TIMER_FREQ);	printf( "[\x12+\x17] Initialised timer to %uhz\n", TIMER_FREQ );
+	init_tables(); 		kputs( "[\x12+\x17] initialised tables\n" );
+	init_timer(TIMER_FREQ);	kputs( "[\x12+\x17] Initialised timer\n" );
 	asm volatile ( "sti" );
 	init_paging( mboot ); 		printf( "[\x12+\x17] initialised paging\n" );
+
 	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
 	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
 	if ( initrd ){
@@ -259,23 +267,24 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 		printf( "[\x12+\x17] initialised initrd\n" );
 	}
 
-	init_keyboard(); 	//printf( "[\x12+\x17] initialised keyboard\n" );
+	init_syscalls(); 	kputs( "[\x12+\x17] Initialised syscalls\n" );
+	init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
+
+	init_serial();
+	init_keyboard(); 	printf( "[+] initialised keyboard\n" );
 	init_console();
+
 	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
 				printf( "[\x12+\x17] initialised ide\n" );
-	init_syscalls(); 	syscall_kputs( "[\x12+\x17] Initialised syscalls\n" );
-	init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
+
 	//test_fatfs( "/dev/ide0", 63 * 512 );
 	printf( "    Kernel init finished: %d ticks\n", get_tick());
 
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
-	i = load_module( "/init/mod.ko", 0 );
-	if ( i )
-		printf( "Could not load module\n" );
+
 	con_scroll_offset = 0;
 
-
-	create_thread( &main_daemon );
+	//create_thread( &main_daemon );
 	create_thread( &kinit_prompt );
 	sleep_thread( 0xffffffff );
 }

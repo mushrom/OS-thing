@@ -1,5 +1,6 @@
 #ifndef _kernel_multiboot_h
 #define _kernel_multiboot_h
+#include <stdint.h>
 
 enum {
 	MULTIBOOT_FLAG_MEM	= 0x001,
@@ -22,8 +23,10 @@ enum {
 
 typedef struct multiboot_mem_map {
 	unsigned long size;
-	unsigned long long addr;
-	unsigned long long len;
+	unsigned long addr_high;
+	unsigned long addr_low;
+	unsigned long len_high;
+	unsigned long len_low;
 	unsigned long type;
 } __attribute__((packed)) multiboot_mem_map_t;
 

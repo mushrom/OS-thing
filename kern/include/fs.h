@@ -142,6 +142,7 @@ int mkdir( char *path, int mode );
 int chdir( char *path );
 int chroot( char *path );
 int lseek( int fd, long offset, int whence );
+int lstat( char *path, struct vfs_stat *buf );
 int mount( char *type, char *dir, int flags, void *data );
 int unmount( char *dir, int flags );
 

@@ -31,11 +31,18 @@ void init_tasking( ){
 	current_task->time = 0;
 	current_task->sleep = 0;
 
+	current_task->child = 0;
+	current_task->waiting = false;
+	current_task->child_count = 0;
+
 	current_task->esp = current_task->ebp = 0;
 	current_task->eip = 0;
 
 	current_task->cwd  = fs_root;
 	current_task->root = fs_root;
+
+	current_task->argv = 0;
+	current_task->envp = 0;
 
 	int i = 0;
 	for ( i = 0; i < MAX_MSGS; i++ )
@@ -55,12 +62,15 @@ void switch_task(){
 
 	unsigned long esp = 0, ebp = 0, eip = 0;
 	task_t *temp = (task_t *)current_task;
+
 	asm volatile( "mov %%esp, %0" : "=r"(esp));
 	asm volatile( "mov %%ebp, %0" : "=r"(ebp));
 	eip = read_eip();
 
 	if ( eip == 0xdeadbeef )
 		return;
+
+	//printf( "0x%x:", current_task->eip );
 
 	current_task->eip = eip;
 	current_task->esp = esp;
@@ -77,9 +87,12 @@ void switch_task(){
 		if ( !temp )
 			temp = (task_t *)task_queue;
 	}
+
 	current_task = temp;
+
 	if ( last_task )
 		last_task->time += get_tick() - last_task->last_time;
+
 	current_task->last_time = get_tick();
 	current_task->status = S_RUNNING;
 
@@ -89,11 +102,14 @@ void switch_task(){
 	esp = current_task->esp;
 	ebp = current_task->ebp;
 
+	if ( isr_error_count ) isr_error_count--;
+
 	current_dir = current_task->dir;
 	set_page_dir( current_dir );
-	set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
+	//set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
+	set_kernel_stack( current_task->stack );
 
-	if ( isr_error_count ) isr_error_count--;
+	//printf( "0x%x\n", current_task->eip );
 
 	asm volatile (" 	\
 		cli;		\
@@ -106,22 +122,40 @@ void switch_task(){
 		jmp *%%ecx" :: "r"(eip), "r"(esp), "r"(ebp), "r"(current_dir->address ));
 }
 
-int create_process( void (*function)( char **, char ** ), char **argv, char **envp ){
+int create_process( void (*function)( int, char **, char ** ), char **argv, char **envp ){
 	asm volatile( "cli" );
-	unsigned long av = (unsigned)argv, ep = (unsigned)envp;
+	int argc = 0;
 
 	task_t *new_task = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
 
 	init_task( new_task );
 	new_task->eip = (unsigned long)function;
 
-	printf( "task stack: 0x%x\n", new_task->stack );
-	PUSH( new_task->stack, ep );
-	PUSH( new_task->stack, av );
-	printf( "task stack: 0x%x\n", new_task->stack );
-	printf( "task eip:   0x%x\n", new_task->eip );
+	if ( argv )
+		for ( argc = 0; argv[argc]; argc++ );
+	else 
+		argc = 0;
+
+	/* Copy args for the new process */
+	char **new_argv = (void *)kmalloc( sizeof( char * ) * argc + 1, 0, 0 );
+	int i;
+	for ( i = 0; i < argc; i++ ){
+		new_argv[i] = (char *)kmalloc( strlen( argv[i] ) + 1, 0, 0 );
+		memcpy( new_argv[i], argv[i], strlen( argv[i] ) + 1 );
+	}
+	new_argv[i] = 0;
+
+	new_task->argv = new_argv;
+	new_task->envp = envp;
+
+	PUSH( new_task->stack, envp );
+	PUSH( new_task->stack, new_argv );
+	PUSH( new_task->stack, argc );
+
+	new_task->esp = new_task->stack;
 	
 	add_task( new_task );
+	current_task->child_count++;
 
 	asm volatile( "sti" );
 	return new_task->id;
@@ -138,7 +172,10 @@ int create_thread( void (*function)()){
 
 	init_task( new_task );
 	new_task->eip = (unsigned long)function;
+	new_task->argv = current_task->argv;
+	new_task->envp = current_task->envp;
 	add_task( new_task );
+	current_task->child_count++;
 
 	asm volatile( "sti" );
 	return new_task->id;
@@ -198,6 +235,16 @@ void exit_thread( ){
 
 	while ( move->next && move->next != temp ) move = move->next;
 	move->next = temp->next;
+
+	printf( "parent %d waiting: %d\n", current_task->parent->id, current_task->parent->waiting );
+	if ( current_task->parent->waiting ){
+		current_task->parent->waiting 	= false;
+		current_task->parent->child	= current_task->id;
+	}
+
+	if ( current_task->parent->child_count ){
+		current_task->parent->child_count--;
+	}
 
 	printf( "pid %d exited\n", temp->id );
 	switch_task();
@@ -343,11 +390,32 @@ int fexecve( int fd, char **argv, char **envp ){
 	return ret; /* If we get here, something went horribly wrong... */
 }
 
+int wait( int *status ){
+	if ( !current_task->child_count ){
+		//printf( "Nothing to wait on\n" );
+		*status = 1;
+		return -1;
+	}
+	current_task->waiting = true;
+
+	//printf( "task: %d\n", current_task->waiting );
+	while ( current_task->waiting ){
+		sleep_thread( 3 );
+	}
+
+	current_task->waiting 	= false;
+	current_task->child 	= 0;
+
+	*status = 0;
+
+	return current_task->child;
+}
+
 /** \brief Dump all running pids to screen */
 void dump_pids( void ){
 	task_t *temp = (task_t *)task_queue;
 	char *buf;
-	printf( "pid:\tstate:\t\ttime:\n" );
+	printf( "pid:\tstate:\t\ttime:\targs:\n" );
 	while ( temp ){
 		printf( "%d ", temp->id );
 		switch ( temp->status ){
@@ -368,7 +436,14 @@ void dump_pids( void ){
 				break;
 		}
 		printf( "\t%s ", buf );
-		printf( "\t%d\n", temp->time );
+		printf( "\t%d\t", temp->time );
+		if ( temp->argv ){
+			int i;
+			for ( i = 0; temp->argv[i]; i++ )
+				printf( "\"%s\", ", temp->argv[i] );
+		}
+
+		printf( "\n" );
 		temp = temp->next;
 	}
 	printf( "\ttotal time: \t%d\n", get_tick());

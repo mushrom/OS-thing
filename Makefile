@@ -1,8 +1,8 @@
 ARCH=i586
 TARGET=$(ARCH)-elf
-MAKE=gmake
-EMULATOR=qemu
-EMU_FLAGS=-hda vdrive.hdd -hdb fattest.hdd -s 
+MAKE=make
+EMULATOR=qemu-system-i386
+EMU_FLAGS=-hda vdrive.hdd -hdb fattest.hdd -s -serial stdio
 CROSS=$(shell pwd)/cross
 
 KNAME=obsidian-$(ARCH)
@@ -24,7 +24,7 @@ all: check kernel userland image
 dev-all: check kernel userland image docs test
 
 debug:
-	echo $(CROSS_PREFIX)
+	@gdb -x gdbscript
 
 check:
 	@if [ ! -e cross/.check-$(ARCH)-elf ]; then \
@@ -49,7 +49,7 @@ image:
 	@cd init; ../tools/mkinitrd ../initrd.img *
 	@echo -e "[\033[0;32mdone\033[0;0m]"
 	@echo -e "[\033[0;32mMaking image\033[0;0m]"
-	@sh mk_image.sh
+	@sh ./mk_image.sh
 	@echo "To boot: $(EMULATOR) $(EMU_FLAGS)"
 	@echo -e "[\033[0;32mdone\033[0;0m]"
 	@echo -e "[\033[0;34mdone\033[0;0m]";
@@ -72,5 +72,6 @@ docs:
 
 clean:
 	@cd kern; $(MAKE) clean
+	@cd user; $(MAKE) clean
 
 .PHONY: all

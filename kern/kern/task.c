@@ -56,21 +56,29 @@ void init_tasking( ){
 /** \brief The scheduler.
  * Acts along with \ref timer_call to switch tasks.
  */
+/*
+void switch_task( ){
+	if ( !current_task )
+		return;
+
+	return;
+}
+*/
 void switch_task(){
 	if ( !current_task )
 		return;
 
-	unsigned long esp = 0, ebp = 0, eip = 0;
+	unsigned long esp = 0, ebp = 0, eip = 0, check = 0;
 	task_t *temp = (task_t *)current_task;
+
+	eip = read_eip();
+	if ( check ){
+		return;
+	}
+	check = 1;
 
 	asm volatile( "mov %%esp, %0" : "=r"(esp));
 	asm volatile( "mov %%ebp, %0" : "=r"(ebp));
-	eip = read_eip();
-
-	if ( eip == 0xdeadbeef )
-		return;
-
-	//printf( "0x%x:", current_task->eip );
 
 	current_task->eip = eip;
 	current_task->esp = esp;
@@ -106,8 +114,8 @@ void switch_task(){
 
 	current_dir = current_task->dir;
 	set_page_dir( current_dir );
-	//set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
 	set_kernel_stack( current_task->stack );
+	//set_kernel_stack( current_task->stack );
 
 	//printf( "0x%x\n", current_task->eip );
 
@@ -117,9 +125,10 @@ void switch_task(){
 		mov %1, %%esp;	\
 		mov %2, %%ebp;	\
 		mov %3, %%cr3;	\
-		mov $0xdeadbeef, %%eax;\
 		sti;\
-		jmp *%%ecx" :: "r"(eip), "r"(esp), "r"(ebp), "r"(current_dir->address ));
+		jmp *%%ecx" : : "r"(eip), "r"(esp), "r"(ebp), "r"(current_dir->address ));
+		//mov $0xdeadbeef, %0;
+		//mov $0xdeadbeef, %%eax;
 }
 
 int create_process( void (*function)( int, char **, char ** ), char **argv, char **envp ){

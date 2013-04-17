@@ -1,0 +1,3 @@
+file kern/obsidian-i586.sym
+set disassembly-flavor intel
+target remote :1234

@@ -31,5 +31,9 @@ copy_page_phys:
 
 global read_eip
 read_eip:
-	pop eax
-	jmp eax
+	mov eax, [esp]
+	ret
+	;pop eax
+	;push eax
+	;ret
+	;jmp eax

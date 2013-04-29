@@ -50,7 +50,7 @@ int main( void ){
 				printf( "Could not open file\n" );
 				continue;
 			} else {
-				fspawn( fd, 0, 0 );
+				fspawn( fd, args, 0 );
 				syscall_wait( &ret );
 			}
 		}

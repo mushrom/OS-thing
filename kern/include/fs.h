@@ -126,7 +126,7 @@ struct dirp *fs_opendir( file_node_t * );
 int fs_closedir( file_node_t * );
 int fs_mkdir( file_node_t *, char *name, unsigned long );
 
-struct dirent *fs_readdir( struct dirp *dir ); 
+struct dirent *fs_readdir_c( struct dirp *dir, struct dirent *buf ); 
 
 struct dirp *vfs_opendir( file_node_t * );
 int vfs_closedir( file_node_t * );
@@ -136,8 +136,8 @@ int open( char *path, int flags );
 int close( int fd );
 int read( int fd, void *buf, unsigned long size );
 int write( int fd, void *buf, unsigned long size );
-struct dirp *fdopendir( int fd );
-struct dirent *readdir( int fd, struct dirp *dir );
+struct dirp *fdopendir_c( int fd, struct dirp *dir );
+struct dirent *readdir_c( int fd, struct dirp *dir, struct dirent *buf );
 int mkdir( char *path, int mode );
 int chdir( char *path );
 int chroot( char *path );

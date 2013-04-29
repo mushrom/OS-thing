@@ -394,9 +394,12 @@ int fexecve( int fd, char **argv, char **envp ){
 	if ( fd >= current_task->file_count || !current_task->files[fd] )
 		return -1;
 
-	int ret = load_elf( fd, argv, envp );
+	//int ret = load_elf( fd, argv, envp );
+	//load_elf( fd, argv, envp );
+	load_elf( fd, 0, 0 );
+	return 0;
 
-	return ret; /* If we get here, something went horribly wrong... */
+	//return ret; /* If we get here, something went horribly wrong... */
 }
 
 int wait( int *status ){

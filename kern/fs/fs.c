@@ -40,28 +40,38 @@ void init_vfs( void ){ DEBUG_HERE
 	fs_closedir( fs_root );
 }
 
-file_node_t *fs_find_path( char *path, unsigned int links ){
+file_node_t *fs_find_path( char *input_path, unsigned int links ){
 	extern task_t *current_task;
-	file_node_t *fp;
-	if ( strlen( path ) == 0 )
+	char *path, *p; 
+	file_node_t *fp, *ret;
+	if ( strlen( input_path ) == 0 )
 		return 0;
+
+	p = path = (void *)kmalloc( strlen( input_path + 1 ), 0, 0 );
+	memcpy( path, input_path, strlen( input_path ) + 1 );
 
 	if ( path[0] == '/' ){
 		fp = current_task->root;
-		if ( strlen( path ) == 1 )
+
+		while ( path[0] == '/' )
+			path++;
+
+		if ( strlen( path ) == 0 )
 			return fp;
-		path++;
 	} else if ( path[0] == '.' ){
 		fp = current_task->cwd;
 		if ( strlen( path ) == 1 )
 			return fp;
 		path++;
-		if ( path[0] == '/' )
+		while ( path[0] == '/' )
 			path++;
 	} else {
 		fp = current_task->cwd;
 	}
-	return fs_find_node( fp, path, links );
+
+	ret = fs_find_node( fp, path, links );
+	kfree( p );
+	return ret;
 }
 
 int open( char *path, int flags ){
@@ -144,7 +154,7 @@ int write( int fd, void *buf, unsigned long size ){
 	return i;
 }
 
-struct dirp *fdopendir( int fd ){
+struct dirp *fdopendir_c( int fd, struct dirp *buf ){
 	extern task_t *current_task;
 	if ( !current_task->file_count || fd >= current_task->file_count )
 		return 0;
@@ -157,10 +167,12 @@ struct dirp *fdopendir( int fd ){
 
 	current_task->files[fd]->d_offset = 0;
 	
-	return current_task->files[fd]->file->dirp;
+	memcpy( buf, current_task->files[fd]->file->dirp, sizeof( struct dirp ));
+	return buf;
+	//return current_task->files[fd]->file->dirp;
 }
 
-struct dirent *readdir( int fd, struct dirp *dir ){
+struct dirent *readdir_c( int fd, struct dirp *dir, struct dirent *buf ){
 	extern task_t *current_task;
 	if ( !current_task->file_count || fd >= current_task->file_count )
 		return 0;
@@ -171,7 +183,9 @@ struct dirent *readdir( int fd, struct dirp *dir ){
 	if ( current_task->files[fd]->d_offset >= dir->dir_count || !dir )
 		return 0;
 
-	return dir->dir[ current_task->files[fd]->d_offset++ ];
+	//return dir->dir[ current_task->files[fd]->d_offset++ ];
+	memcpy( buf, dir->dir[ current_task->files[fd]->d_offset++ ], sizeof( struct dirent ));
+	return buf;
 }
 
 int chdir( char *path ){

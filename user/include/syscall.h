@@ -56,8 +56,8 @@ DECL_SYSCALL3(	read, 	int, void *, unsigned long );
 DECL_SYSCALL3(	write, 	int, void *, unsigned long );
 DECL_SYSCALL3(	lseek,  int, long, int );
 DECL_SYSCALL2(	lstat,	int, struct vfs_stat * );
-DECL_SYSCALL1(	fdopendir, int);
-DECL_SYSCALL2(	readdir, int, struct dirp * ); 
+DECL_SYSCALL2(	fdopendir_c, int, struct dirp * );
+DECL_SYSCALL3(	readdir_c, int, struct dirp *, struct dirent * ); 
 DECL_SYSCALL2(	mkdir, char *, int );
 DECL_SYSCALL1(	chdir,  char *);
 
@@ -85,5 +85,7 @@ DECL_SYSCALL2(	load_module, char *, int );
 #define unmount	syscall_unmount
 #define getpid	syscall_getpid
 #define fspawn  syscall_fspawn
+#define fdopendir_c syscall_fdopendir_c
+#define readdir_c syscall_readdir_c
 
 #endif

@@ -22,8 +22,8 @@ static void *syscalls[ NUM_SYSCALLS ] = {
 	&write,
 	&lseek,
 	&lstat,
-	&fdopendir,
-	&readdir,
+	&fdopendir_c,
+	&readdir_c,
 
 	&mkdir,
 	&chdir,
@@ -52,8 +52,8 @@ DEFN_SYSCALL3(	read,		4, 	int, void *, unsigned long 	);
 DEFN_SYSCALL3(	write,		5, 	int, void *, unsigned long 	);	
 DEFN_SYSCALL3(	lseek,		6,	int, long, int			);
 DEFN_SYSCALL2(	lstat,		7,	int, struct vfs_stat *		);
-DEFN_SYSCALL1(	fdopendir,	8, 	int				);	
-DEFN_SYSCALL2(	readdir,	9, 	int, struct dirp * 		);	
+DEFN_SYSCALL2(	fdopendir_c,	8, 	int, struct dirp *		);	
+DEFN_SYSCALL3(	readdir_c,	9, 	int, struct dirp *, struct dirent * );	
 
 DEFN_SYSCALL2(	mkdir,		10, 	char *, int			);
 DEFN_SYSCALL1(	chdir, 		11,	char *				);

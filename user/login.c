@@ -27,11 +27,13 @@ int main( int argc, char *argv[] ){
 				continue;
 			}
 
-			int ret = fspawn( fd, 0, 0 );
+			int ret = 0;
+			ret = fspawn( fd, 0, 0 );
 			if ( ret < 0 ){
 				printf( "Could not exec shell\n" );
 				continue;
 			}
+			printf( "got gere\n" );
 			syscall_wait( &ret );
 		} else {
 			printf( "Incorrect password.\n" );

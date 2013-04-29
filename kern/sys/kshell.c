@@ -181,12 +181,13 @@ int  sh_list( int argc, char **argv ){
 		to_list = argv[1];
 
 	fp = syscall_open( to_list, 0 );
-	struct dirp *dir = fdopendir( fp );
-	struct dirent *entry;
+	struct dirp dir, *d = &dir;
+	d = syscall_fdopendir_c( fp, &dir );
+	struct dirent entry;
 
-	if ( dir ){
-		while (( entry = readdir( fp, dir ))){
-			printf( "%s\t", entry->name );
+	if ( d ){
+		while (( readdir_c( fp, &dir, &entry ))){
+			printf( "%s\t", entry.name );
 			items++;
 			if ( items % 8 == 0 )
 				printf( "\n" );

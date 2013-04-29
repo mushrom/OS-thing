@@ -32,18 +32,25 @@ typedef struct task {
 			id,
 			uid,
 			gid;
+
+	unsigned long addr_start;
+	unsigned long addr_end;
+
 	unsigned long stack;
 	unsigned long sleep;
 	unsigned long status;
 	unsigned long time;
 	unsigned long last_time;
+
 	bool finished;
 	bool waiting;
 	char ret;
+
 	struct page_dir *dir;
 	struct task *next;
 	struct task *prev;
 	struct task *parent;
+
 	unsigned long child;
 	unsigned long child_count;
 	int child_status;

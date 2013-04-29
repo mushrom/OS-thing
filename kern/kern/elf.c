@@ -68,7 +68,6 @@ int load_elf( int fd, char **argv, char **envp ){
 	
 	//free_pages( 0x8000000, 0x8050000, current_task->dir );
 	//flush_tlb();
-
 	return 0;
 }
 

@@ -36,7 +36,8 @@
 #include <fat.h>
 #include <serial.h>
 
-#include <kconfig.h> #include <kshell.h>
+#include <kconfig.h> 
+#include <kshell.h>
 #include <kmacros.h>
 #include <common.h>
 #include <syscall.h>
@@ -277,7 +278,6 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
 				printf( "[\x12+\x17] initialised ide\n" );
 
-	//test_fatfs( "/dev/ide0", 63 * 512 );
 	printf( "    Kernel init finished: %d ticks\n", get_tick());
 
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );

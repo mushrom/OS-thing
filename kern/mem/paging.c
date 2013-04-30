@@ -117,17 +117,14 @@ void map_page( unsigned long address, unsigned int permissions, page_dir_t *dir 
 		memset( dir->tables[ low_index ], 0, sizeof( page_table_t ));
 		dir->table_addr[ low_index ] = temp | permissions;
 	}
+
 	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] & 0xfffff000);
+
 	if ( !dir->tables[ low_index ]->address[ high_index ] )
 		dir->tables[ low_index ]->address[ high_index ] = pop_page();
 
 	dir->tables[ low_index ]->address[ high_index ] |= permissions;
-	//printf( "    [mappage] 0x%x, 0x%x:0x%x \n", dir->tables[low_index], address, dir->tables[ low_index ]->address[ high_index ] );
-
 	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] | permissions );
-#ifdef P_STACKCHECK
-	check_pstack();
-#endif
 }
 
 /** \brief Look up a physical page address
@@ -148,10 +145,6 @@ unsigned long get_page( unsigned long address, page_dir_t *dir ){
 
 	ret_addr = (unsigned long)temp->address[ high_index % 1024 ];
 
-#ifdef P_STACKCHECK
-	check_pstack();
-#endif
-
 	return ret_addr;
 }
 
@@ -162,7 +155,6 @@ unsigned long get_page( unsigned long address, page_dir_t *dir ){
 void free_page( unsigned long address, page_dir_t *dir ){
 	unsigned long 	low_index = address >> 22,
 			high_index  = address >> 12 & 0x3ff;
-			//temp = 0;
 
 	if ( !dir->tables[ low_index ] )
 		return;
@@ -215,20 +207,23 @@ void init_paging( multiboot_header_t *mboot_h ){
 	for ( i = 1; i < 1024; i++ )
 		kernel_dir->tables[i] = 0;
 
-	map_pages( 0, placement + PAGE_SIZE * 100, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
-	map_pages( KHEAP_START, KHEAP_START + KHEAP_SIZE,   PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
+	map_pages( 0, placement + PAGE_SIZE * 400, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
+	map_pages( KHEAP_START, KHEAP_START + KHEAP_SIZE + PAGE_SIZE,   PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
 
 	register_interrupt_handler( 0xe, page_fault_handler );
 	kernel_dir->address = (void *)((unsigned long)kernel_dir->address | 7);
 
 	set_page_dir( kernel_dir );
 
-	kheap = (void *)init_heap( KHEAP_START, KHEAP_SIZE, kernel_dir );
+	kheap = (void *)init_heap( KHEAP_START, KHEAP_SIZE );
 	printf( "    %d total pages, %d allocated for kernel (%d free, last at 0x%x)\n", 
 			npages, npages - page_ptr, page_ptr, address );
 	printf( "    placement: 0x%x\n", placement );
-
+	printf( "    kheap size: 0x%x\n", KHEAP_SIZE );
+	printf( "    meh: 0x%x\n", sizeof( page_table_t ) * npages );
 	flush_tlb();
+
+	//*(unsigned long *)(KHEAP_START + KHEAP_SIZE) = 1;
 }
 
 page_table_t *clone_table( page_table_t *src, unsigned long *phys_addr ){

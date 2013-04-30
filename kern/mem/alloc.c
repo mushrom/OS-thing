@@ -33,7 +33,7 @@ extern page_dir_t *current_dir, *kernel_dir;
 unsigned long memused = 0;
 
 unsigned long kmalloc( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
-	if ( kheap )
+	if ( kheap && !kheap->full )
 		return kmalloc_f( size, align, physical );
 	else
 		return kmalloc_e( size, align, physical );
@@ -84,12 +84,19 @@ unsigned long find_free_node( kmem_node_t *node, unsigned long node_size, unsign
 }
 
 /* Final malloc function, should be used after paging is enabled. */
-unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
-	unsigned long ret = 0;
+unsigned long malloc_f( heap_t *heap, unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
+	unsigned long ret = 0, r_count = 0;
 	memused += size + sizeof( kmem_node_t );
 
-	while (( ret = find_free_node((kmem_node_t *)kheap->root, kheap->size, size + sizeof( kmem_node_t ), align )) == 0 )
-		expand( kheap );
+	ret = find_free_node((kmem_node_t *)heap->root, heap->size, size + sizeof( kmem_node_t ), align );
+	while ( ret == 0 ){
+		expand( heap );
+		ret = find_free_node((kmem_node_t *)heap->root, heap->size, size + sizeof( kmem_node_t ), align );
+
+		if ( r_count++ > 3 )
+			PANIC( "well feck" );
+		
+	}
 
 	//printf( "ret: 0x%x\n", ret );
 	if ( physical )
@@ -98,9 +105,13 @@ unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *
 	return (unsigned long)ret;
 }
 
-void kfree( void *ptr ){
+unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *physical ){ DEBUG_HERE
+	return malloc_f( kheap, size, align, physical );
+}
+
+void free_f( heap_t *heap, void *ptr ){
 	kmem_node_t *p = ptr - sizeof( kmem_node_t );
-	if ( kheap ){
+	if ( heap ){
 		if ( p->magics == KHEAP_MAGIC ){
 			p->magics = KHEAP_FREED;
 		} else {
@@ -112,22 +123,48 @@ void kfree( void *ptr ){
 	}
 }
 
+void kfree( void *ptr ){
+	free_f( kheap, ptr );
+}
+
 unsigned long get_memused( void ){
 	return memused;
 }
 
-/** Note: This assumes the memory of param size is already mapped to pages. */
-struct heap *init_heap( unsigned long start, unsigned long size, page_dir_t *dir ){ DEBUG_HERE
-	heap_t *heap = (void *)kmalloc_e( sizeof( heap_t ), 0, 0 );
+/** Note: This assumes the memory needed is already mapped to pages. */
+struct heap *init_heap( unsigned long start, unsigned long size ){ DEBUG_HERE
+	heap_t *heap = (void *)kmalloc( sizeof( heap_t ), 0, 0 );
 	memset( heap, 0, sizeof( heap_t ));
 	heap->magics = KHEAP_MAGIC;
 	heap->size   = size / 4;
 	heap->root   = (void *)start;
+	heap->full   = 0;
 	return (struct heap *)heap;
 }
 
+int r_check = 0;
 void expand( heap_t *heap ){
-	PANIC( "Expand not implemented yet." );
+	unsigned long old_size = heap->size * 4;
+	unsigned long new_size = old_size * 2;
+	unsigned long root = (unsigned long)heap->root;
+	heap->full = 1;
+
+	printf( "============================\n" );
+	printf( "Attempting to resize heap...\n" );
+	printf( "\told = 0x%x 0x%x\n", old_size, root + old_size );
+	printf( "\tnew = 0x%x 0x%x\n", new_size, root + new_size );
+	printf( "============================\n"  );
+
+	map_pages( root + old_size, root + new_size + 0x100 + 0x10000, 7, current_dir );
+	flush_tlb( );
+
+	if ( r_check++ )
+		PANIC( "Caught another expand" );
+
+	heap->size = new_size/4;
+	heap->full = 0;
+
+	//PANIC( "Expand not implemented yet." );
 }
 
 #endif

@@ -20,7 +20,10 @@ typedef struct heap {
 	unsigned long size; // This is the number of bytes total
 	unsigned long used; // This is the number of bytes used
 	struct kmem_node_t  *root;
+	unsigned char full;
 } __attribute__((packed)) heap_t;
+
+struct heap *init_heap( unsigned long start, unsigned long size );
 
 unsigned long kmalloc_e( unsigned long size, unsigned int align, unsigned long *physical );
 unsigned long kmalloc_f( unsigned long size, unsigned int align, unsigned long *physical );

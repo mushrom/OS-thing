@@ -56,14 +56,7 @@ void init_tasking( ){
 /** \brief The scheduler.
  * Acts along with \ref timer_call to switch tasks.
  */
-/*
-void switch_task( ){
-	if ( !current_task )
-		return;
 
-	return;
-}
-*/
 void switch_task(){
 	if ( !current_task )
 		return;
@@ -131,7 +124,8 @@ void switch_task(){
 		//mov $0xdeadbeef, %%eax;
 }
 
-int create_process( void (*function)( int, char **, char ** ), char **argv, char **envp ){
+int create_process( void (*function)( int, char **, char ** ), char **argv, char **envp, 
+			unsigned long start_addr, unsigned long end_addr ){
 	asm volatile( "cli" );
 	int argc = 0;
 
@@ -139,6 +133,14 @@ int create_process( void (*function)( int, char **, char ** ), char **argv, char
 
 	init_task( new_task );
 	new_task->eip = (unsigned long)function;
+	//kfree((void *) new_task->stack );
+	//new_task->stack = 0xb00c0000 + KERNEL_STACK_SIZE;
+	//new_task->stack = start_addr + PAGE_SIZE * 2;
+
+	//map_page( 0xbfff0000, 7, current_dir );
+	//map_pages( 0xb00c0000, 0xb00f0000, 7, current_dir );
+	//flush_tlb( );
+	//return 0;
 
 	if ( argv )
 		for ( argc = 0; argv[argc]; argc++ );
@@ -146,16 +148,24 @@ int create_process( void (*function)( int, char **, char ** ), char **argv, char
 		argc = 0;
 
 	/* Copy args for the new process */
+	new_task->stack -= sizeof( char * ) * argc + 1;
+	char **new_argv = (char **)new_task->stack;
+	/*
 	char **new_argv = (void *)kmalloc( sizeof( char * ) * argc + 1, 0, 0 );
+	*/
 	int i;
 	for ( i = 0; i < argc; i++ ){
-		new_argv[i] = (char *)kmalloc( strlen( argv[i] ) + 1, 0, 0 );
+		new_task->stack -= strlen( argv[i] ) + 1;
+		new_argv[i] = new_task->stack;
 		memcpy( new_argv[i], argv[i], strlen( argv[i] ) + 1 );
+		/*
+		new_argv[i] = (char *)kmalloc( strlen( argv[i] ) + 1, 0, 0 );
+		*/
 	}
 	new_argv[i] = 0;
 
 	new_task->argv = new_argv;
-	new_task->envp = envp;
+	new_task->envp = 0;//envp;
 
 	PUSH( new_task->stack, envp );
 	PUSH( new_task->stack, new_argv );
@@ -396,7 +406,7 @@ int fexecve( int fd, char **argv, char **envp ){
 
 	//int ret = load_elf( fd, argv, envp );
 	//load_elf( fd, argv, envp );
-	load_elf( fd, 0, 0 );
+	load_elf( fd, argv, envp );
 	return 0;
 
 	//return ret; /* If we get here, something went horribly wrong... */

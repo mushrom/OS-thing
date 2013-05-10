@@ -31,6 +31,8 @@ unsigned long pop_page( void );
 void push_page( unsigned long );
 void set_page( unsigned long *address, unsigned long virtual, unsigned int permissions ); 
 
+void map_page( unsigned long address, unsigned int permissions, page_dir_t *dir );
+
 void map_pages( unsigned long start, unsigned long end, unsigned int permissions, page_dir_t * );
 void free_pages( unsigned long start, unsigned long end, page_dir_t * );
 

@@ -10,7 +10,7 @@
 #include <common.h>
 
 //#define KERNEL_STACK_SIZE 4096
-#define KERNEL_STACK_SIZE 0x1000
+#define KERNEL_STACK_SIZE 0x800
 #define MAX_MSGS 32
 #define MAX_FILES 32
 #define PUSH( stack, data ) { stack -= sizeof( data ); memcpy((void *)stack, &data, sizeof( data )); }
@@ -69,7 +69,7 @@ typedef struct task {
 } task_t;
 
 void init_tasking( );
-int  create_process( void (*)(int, char **, char **), char **, char ** );
+int  create_process( void (*)(int, char **, char **), char **, char **, unsigned long, unsigned long );
 int  create_thread( void (*)());
 int  kill_thread( unsigned long pid );
 void sleep_thread( unsigned long time );

@@ -17,7 +17,7 @@ KFILES	  += $(shell find sys kern lib fs mem drivers -name "*.[c,s]" )
 KFILES	  += $(shell ls *.c *.s )
 LINKFILES += $(shell echo $(KFILES) | sed "s/\.[c,h,s]/.o/g")
 
-MODFILES   = $(shell find modules -name "*.[c]")
+MODFILES   = $(shell find modules/mods -name "*.[c]")
 
 all: kernel link extract-syms kmodules
 
@@ -62,20 +62,21 @@ extract-syms:
 
 kmodules:
 	@echo -e "[\033[0;34mCompiling modules...\033[0;0m]"
-	@$(AS) -felf modules/mrt0.s
+	@$(AS) -felf modules/lib/mrt0.s
+	@$(CC) $(CFLAGS) -c modules/lib/syscall.c -o modules/lib/syscall.o
 	@for thing in $(MODFILES); do \
 		OUTFILE=`echo $$thing | sed "s/\.[c,h,s]//"`; \
 		EXT=`echo $$thing | tail -c3`; \
 		RET=0; \
 		echo -e "Compiling $$thing...\r\c"; \
-		if [ $$EXT = .c ]; then \
+		if [ $$EXT = .c -a $$OUTFILE != syscall ]; then \
 			$(CC) $(CFLAGS) -c $$thing -o $$OUTFILE.o; \
 			RET=$$?; \
 		fi; \
 		if [ $$RET -gt 0 ]; then \
 			echo -e "[\033[0;31merror\033[0;0m] $$thing -> $$OUTFILE"; \
 		else \
-			$(LD) -o $$OUTFILE.ko modules/mrt0.o $$OUTFILE.o; \
+			$(LD) -o $$OUTFILE.ko modules/lib/mrt0.o $$OUTFILE.o modules/lib/syscall.o; \
 			cp $$OUTFILE.ko ../init; \
 			echo -e "[\033[0;32mdone\033[0;0m] $$thing -> $$OUTFILE.ko"; \
 		fi; \

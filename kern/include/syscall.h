@@ -5,6 +5,7 @@
 #include <task.h>
 #include <fs.h>
 #include <module.h>
+#include <symbols.h>
 
 #define DECL_SYSCALL0(fn) int syscall_##fn();
 #define DECL_SYSCALL1(fn, p1) int syscall_##fn(p1);
@@ -64,6 +65,7 @@ DECL_SYSCALL3(fexecve, int, char **, char ** );
 DECL_SYSCALL1(thread, void *);
 
 DECL_SYSCALL1(kputs, char *);
+DECL_SYSCALL1(kget_symbol, char *);
 
 void init_syscalls();
 

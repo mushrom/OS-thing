@@ -42,15 +42,18 @@
 #include <common.h>
 #include <syscall.h>
 #include <module.h>
+#include <symbols.h>
 
 unsigned int initial_esp; 			/**< esp at start, is set to \ref initial_stack */
 unsigned int g_errline = 0;			/**< Error line of last debug, see \ref kmacros.h */
-extern unsigned short con_scroll_offset;	/**< How many lines to skip while scrolling */
 page_dir_t *kernel_dir;				/**< kernel page directory */
 struct multiboot_header *g_mboot_header = 0;
 
 int debug_file = -1;
 int stdout_file = -1;
+
+extern unsigned short con_scroll_offset;	/**< How many lines to skip while scrolling */
+extern ksymbol_bin_t *ksymbol_table;
 
 #ifndef NO_DEBUG
 /** File of last debug, see \ref kmacros.h */
@@ -261,6 +264,9 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	asm volatile ( "sti" );
 	init_paging( mboot ); 		printf( "[\x12+\x17] initialised paging\n" );
 
+	ksymbol_table = init_symbol_bin( 128 ); printf( "[\x12+\x17] initialised kernel symbol table\n" );
+	kexport_symbol( "printf", (unsigned long)printf );
+
 	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
 	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
 	if ( initrd ){
@@ -277,6 +283,7 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 
 	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
 				printf( "[\x12+\x17] initialised ide\n" );
+
 
 	printf( "    Kernel init finished: %d ticks\n", get_tick());
 

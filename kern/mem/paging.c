@@ -2,10 +2,18 @@
 #define _kernel_paging_c
 
 #include <paging.h>
-extern unsigned long placement;
-unsigned long *page_stack, page_ptr = 0, stack_bottom = 0, npages = 0, mem_end = 0x1000000; 
-page_dir_t *kernel_dir = 0, *current_dir = 0;
-page_table_t *clone_table( page_table_t *src, unsigned long *phys );
+extern unsigned long 	placement,
+			initial_esp;
+unsigned long 	*page_stack, 
+		page_ptr = 0, 
+		stack_bottom = 0, 
+		npages = 0, 
+		mem_end = 0x1000000; 
+
+page_dir_t 	*kernel_dir = 0, 
+		*current_dir = 0;
+
+//page_table_t *clone_table( page_table_t *src, unsigned long *phys );
 //page_dir_t *clone_page_dir( page_dir_t *src );
 extern void copy_page_phys( unsigned long, unsigned long );
 extern struct heap *kheap;
@@ -102,7 +110,7 @@ void check_pstack( void ){
 	}
 }
 
-/** \brief Maps a virtual address to a page
+/** \brief Maps a virtual address to a page, allocates a new frame if not already allocated
  * @param address The virtual address to assign
  * @param permissions The permissions for the new page
  * @param dir The page directory to add the entry to
@@ -127,6 +135,53 @@ void map_page( unsigned long address, unsigned int permissions, page_dir_t *dir 
 	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] | permissions );
 }
 
+/** \brief Maps a virtual address to a given real address
+ * @param address The virtual address to assign
+ * @param real The real address to map to
+ * @param permissions The permissions for the new page
+ * @param dir The page directory to add the entry to
+ */
+void map_r_page( unsigned long address, unsigned long real, unsigned int permissions, page_dir_t *dir ){
+	unsigned long 	low_index = address >> 22,
+			high_index  = address >> 12 & 0x3ff,
+			temp = 0;
+
+	if ( !dir->tables[ low_index ] ){
+		dir->tables[ low_index ] = (void *)kmalloc( sizeof( page_table_t ), 1, &temp );
+		memset( dir->tables[ low_index ], 0, sizeof( page_table_t ));
+		dir->table_addr[ low_index ] = temp | permissions;
+	}
+
+	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] & 0xfffff000);
+
+	dir->tables[ low_index ]->address[ high_index ] = real;
+
+	dir->tables[ low_index ]->address[ high_index ] |= permissions;
+	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] | permissions );
+}
+
+/** \brief "Rawly" maps a virtual address to a given real address, doesn't alter \ref real or table permissions.
+ * @param address The virtual address to assign
+ * @param real The real address to map to
+ * @param dir The page directory to add the entry to
+ */
+void rmap_r_page( unsigned long address, unsigned long real, page_dir_t *dir ){
+	unsigned long 	low_index = address >> 22,
+			high_index  = address >> 12 & 0x3ff,
+			temp = 0;
+
+	if ( !dir->tables[ low_index ] ){
+		dir->tables[ low_index ] = (void *)kmalloc( sizeof( page_table_t ), 1, &temp );
+		memset( dir->tables[ low_index ], 0, sizeof( page_table_t ));
+		dir->table_addr[ low_index ] = temp | ( real & 7 );
+	}
+
+	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] & 0xfffff000);
+
+	dir->tables[ low_index ]->address[ high_index ] = real;
+	dir->tables[ low_index ] = (void *)((unsigned long)dir->tables[ low_index ] | ( real & 7 ));
+}
+
 /** \brief Look up a physical page address
  * @param address The virtual address to look up
  * @param dir The page directory to look in
@@ -135,9 +190,9 @@ void map_page( unsigned long address, unsigned int permissions, page_dir_t *dir 
 unsigned long get_page( unsigned long address, page_dir_t *dir ){
 	unsigned long 	low_index = address >> 22,
 			high_index  = address >> 12 & 0x3ff,
-			i,
 			ret_addr;
 	page_table_t *temp;
+	//printf( "0x%x\n", tdmp );
 
 	temp = (void *)((unsigned long)dir->tables[ low_index ] & 0xfffff000 );
 	if ( !temp )
@@ -172,6 +227,19 @@ void map_pages( unsigned long start, unsigned long end, unsigned int permissions
 	unsigned long address = 0;
 	for ( address = start; address < end; address += 0x1000 )
 		map_page( address, permissions, dir );
+}
+
+/** \brief Map a range of addresses
+ * @param start The starting virtual address
+ * @param end The ending virtual address
+ * @param real The starting real address
+ * @param permissions Permissions to assign to the pages
+ * @param dir The page directory to work in
+ */
+void map_r_pages( unsigned long start, unsigned long end, unsigned long real, unsigned int permissions, page_dir_t *dir ){
+	unsigned long address = start, r_address = real;
+	for ( ; address < end; address += 0x1000, r_address += 0x1000 )
+		map_r_page( address, r_address, permissions, dir );
 }
 
 /** \brief Free a range of addresses
@@ -215,13 +283,26 @@ void init_paging( multiboot_header_t *mboot_h ){
 
 	set_page_dir( kernel_dir );
 
+	/* small test for page linking 
+	map_page( 0xd0000000, 7, kernel_dir );
+	rmap_r_page( 0xe0000000, get_page( 0xd0000000, kernel_dir ), kernel_dir );
+	set_page_dir( kernel_dir );
+	flush_tlb();
+
+	memcpy( 0xd0000000, "hello\n", 7 );
+	printf( "%s", (char *)0xe0000000 );
+	*/
 	kheap = (void *)init_heap( KHEAP_START, KHEAP_SIZE );
+	/*
 	printf( "    %d total pages, %d allocated for kernel (%d free, last at 0x%x)\n", 
 			npages, npages - page_ptr, page_ptr, address );
 	printf( "    placement: 0x%x\n", placement );
 	printf( "    kheap size: 0x%x\n", KHEAP_SIZE );
 	printf( "    meh: 0x%x\n", sizeof( page_table_t ) * npages );
+	*/
+	//set_page_dir( kernel_dir );
 	flush_tlb();
+
 
 	//*(unsigned long *)(KHEAP_START + KHEAP_SIZE) = 1;
 }
@@ -262,4 +343,43 @@ page_dir_t *clone_page_dir( page_dir_t *src ){
 	return dir;
 }
 
+/* 
+void move_stack( unsigned long start ){
+	unsigned long i, j, size = 0x1000;
+	unsigned long old_esp, old_ebp, offset, new_esp, new_ebp;
+
+	asm volatile( "mov %%esp, %0" : "=r" (old_esp));
+	asm volatile( "mov %%ebp, %0" : "=r" (old_ebp));
+
+	i = start;
+	j = old_esp;
+	printf( "j: 0x%x i: 0x%x size: 0x%x\n", j, i, size );
+	for ( ; i >= start - size; j -= 0x1000, i -= 0x1000 ){
+	}
+	printf( "meh\n" );
+	set_page_dir( kernel_dir );
+	flush_tlb();
+	
+	asm volatile( "mov %%esp, %0" : "=r" (old_esp));
+	asm volatile( "mov %%ebp, %0" : "=r" (old_ebp));
+
+	offset = start - initial_esp;
+	new_esp = old_esp + offset;
+	new_ebp = old_ebp + offset;
+
+	map_page( 0xe0000000, 7, kernel_dir );
+	//printf( "dir: 0x%x\n", kernel_dir );
+
+	///set_page_dir( kernel_dir );
+	flush_tlb();
+
+
+	//printf( "new esp: 0x%x offset: 0x%x\n", new_esp, offset );
+	
+	//asm volatile( "mov %0, %%esp" :: "r"( new_esp ));
+	//asm volatile( "mov %0, %%ebp" :: "r"( new_ebp ));
+	printf( "0x%x\n", *(unsigned *)0xe0000000 );
+
+}
+*/
 #endif

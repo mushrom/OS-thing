@@ -32,8 +32,10 @@ void push_page( unsigned long );
 void set_page( unsigned long *address, unsigned long virtual, unsigned int permissions ); 
 
 void map_page( unsigned long address, unsigned int permissions, page_dir_t *dir );
+void map_r_page( unsigned long address, unsigned long real, unsigned int permissions, page_dir_t *dir );
 
 void map_pages( unsigned long start, unsigned long end, unsigned int permissions, page_dir_t * );
+void map_r_pages( unsigned long start, unsigned long end, unsigned long real, unsigned int permissions, page_dir_t * );
 void free_pages( unsigned long start, unsigned long end, page_dir_t * );
 
 void init_paging( multiboot_header_t * );
@@ -41,5 +43,7 @@ void set_page_dir( page_dir_t * );
 void flush_tlb();
 
 page_dir_t *clone_page_dir( page_dir_t *src );
+
+void move_stack( unsigned long start );
 
 #endif

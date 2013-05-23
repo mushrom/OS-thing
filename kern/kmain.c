@@ -263,12 +263,14 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	init_timer(TIMER_FREQ);	kputs( "[\x12+\x17] Initialised timer\n" );
 	asm volatile ( "sti" );
 	init_paging( mboot ); 		printf( "[\x12+\x17] initialised paging\n" );
+	printf( "Woop\n" );
 
 	ksymbol_table = init_symbol_bin( 128 ); printf( "[\x12+\x17] initialised kernel symbol table\n" );
 	kexport_symbol( "printf", (unsigned long)printf );
 
 	init_vfs();		printf( "[\x12+\x17] initialised vfs\n" );
 	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
+
 	if ( initrd ){
 		init_initrd( initrd ); 	
 		printf( "[\x12+\x17] initialised initrd\n" );
@@ -280,6 +282,8 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	init_serial();
 	init_keyboard(); 	printf( "[+] initialised keyboard\n" );
 	init_console();
+
+	//debug_file = open( "/dev/ser0", O_WRONLY );
 
 	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
 				printf( "[\x12+\x17] initialised ide\n" );

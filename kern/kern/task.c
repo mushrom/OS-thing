@@ -50,6 +50,8 @@ void init_tasking( ){
 	for ( i = 0; i < MAX_FILES; i++ )
 		current_task->files[i] = 0;
 
+	set_kernel_stack( current_task->stack );
+
 	asm volatile( "sti" );
 }
 
@@ -103,36 +105,52 @@ void switch_task(){
 	esp = current_task->esp;
 	ebp = current_task->ebp;
 
-	if ( isr_error_count ) isr_error_count--;
-
 	current_dir = current_task->dir;
 	set_page_dir( current_dir );
-	set_kernel_stack( current_task->stack );
+
+	*(unsigned *)(esp - 512) = 0;
+	if ( esp < 0xc0000000 && esp > 0x200000 ){
+		printf( "esp: 0x%x ebp: 0x%x  current_dir: 0x%x\n", esp, ebp, current_dir->address );
+		//temp->sleep = 0xffffffff;
+		//asm volatile( "hlt" );
+		//return;
+	}
+
+	//if ( isr_error_count ) isr_error_count--;
+
+	//set_kernel_stack( current_task->stack );
 	//set_kernel_stack( current_task->stack );
 
 	//printf( "0x%x\n", current_task->eip );
 
+	//return;
 	asm volatile (" 	\
 		cli;		\
 		mov %0, %%ecx;	\
 		mov %1, %%esp;	\
 		mov %2, %%ebp;	\
-		mov %3, %%cr3;	\
 		sti;\
-		jmp *%%ecx" : : "r"(eip), "r"(esp), "r"(ebp), "r"(current_dir->address ));
+		jmp *%%ecx" : : "r"(eip), "r"(esp), "r"(ebp));
 		//mov $0xdeadbeef, %0;
 		//mov $0xdeadbeef, %%eax;
+		//*mov %3, %%cr3;	
 }
 
+// Work in progress, documentation to come
 int create_process( void (*function)( int, char **, char ** ), char **argv, char **envp, 
 			unsigned long start_addr, unsigned long end_addr ){
 	asm volatile( "cli" );
 	int argc = 0;
 
 	task_t *new_task = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
+	printf( "task start: 0x%x\n", start_addr );
+	//*(char *)start_addr = 0;
 
 	init_task( new_task );
 	new_task->eip = (unsigned long)function;
+	//memset((void *)start_addr, 0, 0x1000 );
+	//new_task->ebp = new_task->stack = start_addr + PAGE_SIZE;
+	//new_task->ebp = start_addr + PAGE_SIZE;
 	//kfree((void *) new_task->stack );
 	//new_task->stack = 0xb00c0000 + KERNEL_STACK_SIZE;
 	//new_task->stack = start_addr + PAGE_SIZE * 2;
@@ -141,6 +159,10 @@ int create_process( void (*function)( int, char **, char ** ), char **argv, char
 	//map_pages( 0xb00c0000, 0xb00f0000, 7, current_dir );
 	//flush_tlb( );
 	//return 0;
+	/*
+	memcpy((char *)(start_addr + PAGE_SIZE), "hello\n", 7 );
+	printf( "%s", (char *)(start_addr + PAGE_SIZE ));
+	*/
 
 	if ( argv )
 		for ( argc = 0; argv[argc]; argc++ );
@@ -201,8 +223,7 @@ int create_thread( void (*function)()){
 }
 
 task_t *init_task( task_t *task ){
-	task_t 	*parent = (task_t *)current_task,
-		*temp	= (task_t *)task_queue;
+	task_t 	*parent = (task_t *)current_task;
 
 	task->esp = task->ebp = task->eip = 0;
 
@@ -463,6 +484,8 @@ void dump_pids( void ){
 			int i;
 			for ( i = 0; temp->argv[i]; i++ )
 				printf( "\"%s\", ", temp->argv[i] );
+		} else {
+			printf( "(none) " );
 		}
 
 		printf( "\n" );

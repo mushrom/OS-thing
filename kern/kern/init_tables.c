@@ -117,7 +117,7 @@ static void init_idt( void ){
 	idt_set_gate( 46, (uint32_t)irq14, 0x08, 0x8e );
 	idt_set_gate( 47, (uint32_t)irq15, 0x08, 0x8e );
 
-	idt_set_gate( 48,(uint32_t)isr48,  0x08, 0x8e );	 	//Dump registers
+	idt_set_gate( 0x30,(uint32_t)isr48,  0x08, 0x8e );	 	//Dump registers
 	idt_set_gate( 0x50,(uint32_t)isr80,  0x08, 0x8e | 0x60 ); 	//Syscall
 
 	idt_flush((uint32_t)&idt_ptr );

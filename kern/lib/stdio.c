@@ -11,6 +11,14 @@ int printf( char *format, ... ){
 	va_list args;
 	va_start( args, format );
 
+	if ( debug_file > -1 ){
+		close( debug_file );
+		debug_file = open( "/dev/ser0", O_WRONLY );
+		kvfprintf( debug_file, format, args );
+		va_end( args );
+		va_start( args, format );
+	}
+
 	for ( i = 0; i < slen; i++ ){
 		if ( format[i] == '%' ){
 			switch( format[++i] ){

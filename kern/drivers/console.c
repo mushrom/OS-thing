@@ -91,6 +91,7 @@ static int console_write( file_node_t *node, void *buf, unsigned long size ){
 }
 
 static int console_pwrite( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
+	printf( "[pwrite 0x%x\n", buf );
 	return console_write( node, buf, size );
 }
 

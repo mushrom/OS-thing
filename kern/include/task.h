@@ -83,7 +83,7 @@ void dump_pids( void );
 void switch_to_usermode( void );
 void switch_to_usermode_jmp( unsigned long addr );
 void switch_task();
-void move_stack( void *, unsigned long size );
+//void move_stack( void *, unsigned long size );
 
 int getpid( void );
 int exit( char status );

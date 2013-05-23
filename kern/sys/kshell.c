@@ -38,9 +38,10 @@ int    sh_cat(	int argc, char **argv );
 int sh_mount( 	int argc, char **argv );
 int sh_unmount( int argc, char **argv );
 int sh_chroot(	int argc, char **argv );
+int sh_dump( 	int argc, char **argv );
 
 void init_shell( ){
-	register_shell_func( "ls", sh_list );
+	//register_shell_func( "ls", sh_list );
 	register_shell_func( "cd", sh_cd );
 	register_shell_func( "write", sh_write );
 	register_shell_func( "read", sh_read );
@@ -51,7 +52,7 @@ void init_shell( ){
 	register_shell_func( "test", sh_test );
 	register_shell_func( "atoi", sh_atoi );
 	register_shell_func( "sleep", sh_sleep );
-	register_shell_func( "alloc", sh_alloc );
+	//register_shell_func( "alloc", sh_alloc );
 	register_shell_func( "reboot", sh_reboot );
 	register_shell_func( "mem", sh_mem );
 	register_shell_func( "ps", sh_ps );
@@ -59,11 +60,12 @@ void init_shell( ){
 	register_shell_func( "kill", sh_kill );
 	register_shell_func( "getmsg", sh_getmsg );
 	register_shell_func( "uptime", sh_uptime );
-	register_shell_func( "exec", sh_exec );
+	//register_shell_func( "exec", sh_exec );
 	register_shell_func( "cat", sh_cat );
 	register_shell_func( "mount", sh_mount );
 	register_shell_func( "unmount", sh_unmount );
 	register_shell_func( "chroot", sh_chroot );
+	register_shell_func( "dump", sh_dump );
 }
 
 void register_shell_func( char *name, shell_func_t function ){
@@ -180,20 +182,20 @@ int  sh_list( int argc, char **argv ){
 	if ( argc > 1 )
 		to_list = argv[1];
 
-	fp = syscall_open( to_list, 0 );
-	struct dirp dir, *d = &dir;
-	d = syscall_fdopendir_c( fp, &dir );
+	fp = open( to_list, 0 );
+	struct dirp dir, *d;
 	struct dirent entry;
 
+	d = fdopendir_c( fp, &dir );
+
 	if ( d ){
-		while (( readdir_c( fp, &dir, &entry ))){
+		while (( readdir_c( fp, d, &entry ))){
 			printf( "%s\t", entry.name );
-			items++;
-			if ( items % 8 == 0 )
+			if ( ++items % 8 == 0 )
 				printf( "\n" );
 		}
 		printf( "\n" );
-		syscall_close( fp );
+		close( fp );
 	} else {
 		printf( "Could not open directory\n" );
 	}
@@ -241,11 +243,11 @@ int  sh_read( int argc, char **argv ){
 	return 0;
 }
 
-/*
 int  sh_dump( int argc, char **argv ){
 	asm volatile( "int $0x30" );
 	return 0;
 }
+/*
 */
 
 /*

@@ -73,6 +73,8 @@ DECL_SYSCALL2(	get_msg, unsigned long, ipc_msg_t *);
 DECL_SYSCALL1(	kputs, char *);
 DECL_SYSCALL2(	load_module, char *, int );
 
+DECL_SYSCALL1(	sbrk, 	int 		);
+
 #define exit	syscall_exit
 #define open	syscall_open
 #define close	syscall_close
@@ -87,5 +89,6 @@ DECL_SYSCALL2(	load_module, char *, int );
 #define fspawn  syscall_fspawn
 #define fdopendir_c syscall_fdopendir_c
 #define readdir_c syscall_readdir_c
+#define sbrk	(void *)syscall_sbrk
 
 #endif

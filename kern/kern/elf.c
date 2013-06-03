@@ -58,13 +58,14 @@ int load_elf( int fd, char **argv, char **envp ){
 		lseek( fd, phbuf.p_offset, 0 );
 		read( fd, buf, phbuf.p_filesz );
 
-		map_pages( phbuf.p_vaddr - PAGE_SIZE, phbuf.p_vaddr + phbuf.p_memsz, 7, new_dir );
+		extern page_dir_t *kernel_dir;
+		map_pages( phbuf.p_vaddr, phbuf.p_vaddr + phbuf.p_memsz, 7, new_dir );
 		flush_tlb();
 		memcpy((void *)phbuf.p_vaddr, buf, phbuf.p_filesz );
 		kfree( buf );
 	}
 
-	create_process((void *)elf_header.e_entry, argv, envp, phbuf.p_vaddr - PAGE_SIZE, phbuf.p_vaddr + phbuf.p_memsz );
+	create_process((void *)elf_header.e_entry, argv, envp, phbuf.p_vaddr, phbuf.p_vaddr + phbuf.p_memsz );
 	
 	//free_pages( 0x8000000, 0x8050000, current_task->dir );
 	//flush_tlb();

@@ -19,6 +19,7 @@ void init_tasking( ){
 	extern file_node_t *fs_root;
 
 	last_task = current_task = task_queue = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
+	memset( task_queue, 0, sizeof( task_t ));
 
 	current_task->id = next_pid++;
 	current_task->parent = (task_t *)current_task;
@@ -111,7 +112,7 @@ void switch_task(){
 	*(unsigned *)(esp - 512) = 0;
 	if ( esp < 0xc0000000 && esp > 0x200000 ){
 		printf( "esp: 0x%x ebp: 0x%x  current_dir: 0x%x\n", esp, ebp, current_dir->address );
-		//temp->sleep = 0xffffffff;
+		temp->sleep = 0xffff;
 		//asm volatile( "hlt" );
 		//return;
 	}
@@ -143,13 +144,15 @@ int create_process( void (*function)( int, char **, char ** ), char **argv, char
 	int argc = 0;
 
 	task_t *new_task = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
-	printf( "task start: 0x%x\n", start_addr );
+	memset( new_task, 0, sizeof( task_t ));
+
+	printf( "task start: 0x%x, task end: 0x%x\n", start_addr, end_addr );
 	//*(char *)start_addr = 0;
 
 	init_task( new_task );
 	new_task->eip = (unsigned long)function;
 	//memset((void *)start_addr, 0, 0x1000 );
-	//new_task->ebp = new_task->stack = start_addr + PAGE_SIZE;
+	//new_task->ebp = new_task->stack = start_addr + KERNEL_STACK_SIZE;
 	//new_task->ebp = start_addr + PAGE_SIZE;
 	//kfree((void *) new_task->stack );
 	//new_task->stack = 0xb00c0000 + KERNEL_STACK_SIZE;
@@ -160,9 +163,11 @@ int create_process( void (*function)( int, char **, char ** ), char **argv, char
 	//flush_tlb( );
 	//return 0;
 	/*
-	memcpy((char *)(start_addr + PAGE_SIZE), "hello\n", 7 );
+	memcpy((char *)(0xbfff0000 + PAGE_SIZE), "hello\n", 7 );
 	printf( "%s", (char *)(start_addr + PAGE_SIZE ));
 	*/
+	new_task->start_addr = start_addr;
+	new_task->brk = new_task->end_addr = end_addr;
 
 	if ( argv )
 		for ( argc = 0; argv[argc]; argc++ );
@@ -210,6 +215,7 @@ int create_thread( void (*function)()){
 	asm volatile( "cli" );
 
 	task_t *new_task = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
+	memset( new_task, 0, sizeof( task_t ));
 
 	init_task( new_task );
 	new_task->eip = (unsigned long)function;
@@ -235,6 +241,7 @@ task_t *init_task( task_t *task ){
 	task->last_time = get_tick();
 	task->dir = current_dir;
 	task->stack = kmalloc( KERNEL_STACK_SIZE, 1, 0 ) + KERNEL_STACK_SIZE;
+	memset((void *)( task->stack - KERNEL_STACK_SIZE ), 0, KERNEL_STACK_SIZE );
 	task->esp = task->stack;
 	task->ebp = current_task->ebp;
 
@@ -544,6 +551,13 @@ void switch_to_usermode_jmp( unsigned long addr ){
 		pushl %0;	\
 		iret;		\
 	":: "m"(addr));
+}
+
+void *sbrk( int inc ){
+	char *ret = current_task->brk;
+	current_task->end_addr += inc;
+
+	return (void *)ret;
 }
 
 /*

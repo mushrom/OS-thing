@@ -88,4 +88,11 @@ void gen_protect_fault( registers_t *regs ){
 	//PANIC( "General protection fault" );
 }
 
+void double_fault( registers_t *regs ){
+	printf( "Double fault\n" );
+	dump_registers( regs );
+
+	PANIC( "Welp..." );
+}
+
 #endif

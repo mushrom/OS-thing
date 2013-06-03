@@ -27,7 +27,10 @@ DEFN_SYSCALL1(	wait,		18, int * );
 DEFN_SYSCALL1(	kill,		19, unsigned long );
 DEFN_SYSCALL2(	send_msg, 	20, unsigned long, ipc_msg_t *);
 DEFN_SYSCALL2(	get_msg, 	21, unsigned long, ipc_msg_t *);
+
 DEFN_SYSCALL1(	kputs, 		22, char *);
 DEFN_SYSCALL2(	load_module, 	23, char *, int );
+// Syscalls reserved for kernel
+DEFN_SYSCALL1(	sbrk, 		26, int );
 
 #endif

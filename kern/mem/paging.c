@@ -13,6 +13,8 @@ unsigned long 	*page_stack,
 page_dir_t 	*kernel_dir = 0, 
 		*current_dir = 0;
 
+task_t 		*current_task;
+
 //page_table_t *clone_table( page_table_t *src, unsigned long *phys );
 //page_dir_t *clone_page_dir( page_dir_t *src );
 extern void copy_page_phys( unsigned long, unsigned long );
@@ -49,8 +51,15 @@ void page_fault_handler( registers_t *regs ){
 	);
 	dump_registers( regs );
 	printf( "pid: %d\n", getpid());
-	end_bad_task( );
-	PANIC( "Page fault" );
+
+	if ( fault_addr < current_task->end_addr && get_page( fault_addr, current_dir ) == 0 ){
+		printf( "Address is in task's address space, trying to map...\n" );
+		map_page( fault_addr, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, current_dir );
+		flush_tlb();
+	} else {
+		end_bad_task( );
+		PANIC( "Page fault" );
+	}
 }
 
 /** \brief Push a page onto the page stack

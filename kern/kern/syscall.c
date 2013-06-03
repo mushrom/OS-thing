@@ -7,7 +7,7 @@
 
 static void syscall_handler( registers_t *regs );
 
-#define NUM_SYSCALLS 26
+#define NUM_SYSCALLS 27
 /** System call table 
  * Contains the address of functions to jump to
  * upon recieving int 0x50
@@ -43,7 +43,8 @@ static void *syscalls[ NUM_SYSCALLS ] = {
 	&load_module,
 	&kexport_symbol,
 
-	&kget_symbol
+	&kget_symbol,
+	&sbrk
 };
 
 DEFN_SYSCALL0(	cls, 		0					);
@@ -77,6 +78,7 @@ DEFN_SYSCALL2(	load_module,	23,	char *, int		 	);
 DEFN_SYSCALL2(	kexport_symbol,	24,	char *, unsigned long		);
 
 DEFN_SYSCALL1(	kget_symbol,	25,	char * 				);
+DEFN_SYSCALL1(	sbrk,	 	26, 	int				);
 
 void init_syscalls(){
 	register_interrupt_handler( 0x50, &syscall_handler );

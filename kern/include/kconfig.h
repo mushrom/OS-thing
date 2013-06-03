@@ -8,7 +8,7 @@
 
 /** General debugging options */
 
-//#define RECOVER_FROM_PANIC
+#define RECOVER_FROM_PANIC
 //#define P_STACKCHECK
 #define ENABLE_BUILTIN_SHELL
 //#define NO_DEBUG

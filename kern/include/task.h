@@ -33,8 +33,9 @@ typedef struct task {
 			uid,
 			gid;
 
-	unsigned long addr_start;
-	unsigned long addr_end;
+	unsigned long start_addr;
+	unsigned long end_addr;
+	char *brk;
 
 	unsigned long stack;
 	unsigned long sleep;
@@ -90,6 +91,7 @@ int exit( char status );
 int fexecve( int fd, char **argv, char **envp );
 int load_flat_bin( int fd );
 int wait( int * );
+void *sbrk( int );
 
 task_t *get_pid_task( unsigned long pid );
 task_t *init_task( task_t *task );

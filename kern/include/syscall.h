@@ -66,6 +66,7 @@ DECL_SYSCALL1(thread, void *);
 
 DECL_SYSCALL1(kputs, char *);
 DECL_SYSCALL1(kget_symbol, char *);
+DECL_SYSCALL1(sigreturn, int );
 
 void init_syscalls();
 

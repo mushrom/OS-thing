@@ -42,22 +42,23 @@ void page_fault_handler( registers_t *regs ){
 	unsigned long fault_addr;
 	asm volatile( "mov %%cr2, %0": "=r"(fault_addr));
 
-	printf( "page fault: address 0x%x%s%s%s%s\n",
-		fault_addr,
-		(!regs->err_code & 0x1 )?" not present":"",
-		(regs->err_code & 0x2 )?" read-only":"",
-		(regs->err_code & 0x4 )?" user-mode":"",
-		(regs->err_code & 0x8 )?" reserved":""
-	);
-	dump_registers( regs );
-	printf( "pid: %d\n", getpid());
-
-	if ( fault_addr < current_task->end_addr && get_page( fault_addr, current_dir ) == 0 ){
-		printf( "Address is in task's address space, trying to map...\n" );
+	if ( fault_addr > current_task->start_addr && fault_addr < current_task->end_addr && get_page( fault_addr, current_dir ) == 0 ){
+		printf( "Address 0x%x is in task's address space, mapping...\n", fault_addr );
 		map_page( fault_addr, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, current_dir );
 		flush_tlb();
 	} else {
-		end_bad_task( );
+		printf( "page fault: address 0x%x%s%s%s%s\n",
+			fault_addr,
+			(!regs->err_code & 0x1 )?" not present":"",
+			(regs->err_code & 0x2 )?" read-only":"",
+			(regs->err_code & 0x4 )?" user-mode":"",
+			(regs->err_code & 0x8 )?" reserved":""
+		);
+		dump_registers( regs );
+		printf( "pid: %d\n", getpid());
+
+		signal_bad_task( SIGSEGV );
+
 		PANIC( "Page fault" );
 	}
 }
@@ -267,14 +268,31 @@ void free_pages( unsigned long start, unsigned long end, page_dir_t *dir ){
  */
 void init_paging( multiboot_header_t *mboot_h ){
 	unsigned long address	= 0, i;
+	/*
 	page_dir_t   *kernel_dir	  = (void *)kmalloc_e( sizeof( page_dir_t ), 1, &address );
 		      kernel_dir->address = (void *)address;
+	*/
+	kernel_dir		= (void *)kmalloc_e( sizeof( page_dir_t ), 1, &address );
+	kernel_dir->address 	= (void *)address;
 
+	//npages		= ( mboot_h->mem_lower + mboot_h->mem_upper ) / PAGE_SIZE;//mem_end / PAGE_SIZE;
 	npages			= mem_end / PAGE_SIZE;
+	//printf( "Got here...\n" );
 	page_stack 	 	= (void *)kmalloc_e( npages * 4 + 1, 1, 0 );
 
 	if ( mboot_h->flags & MULTIBOOT_FLAG_MMAP ){
-		/* Coming soon to theaters near you */
+		/*
+		multiboot_mem_map_t *mmap;
+
+		printf( "mmap_addr: 0x%x, length: 0x%x\n", mboot_h->mmap_addr, mboot_h->mmap_length );
+
+		mmap = (multiboot_mem_map_t *)mboot_h->mmap_addr;
+		for ( ; mmap < mboot_h->mmap_addr + mboot_h->mmap_length; mmap += mmap->size + sizeof( mmap->size )){
+			printf( "size: 0x%x, base: 0x%x%x, length: 0x%x%x, type: 0x%x\n", 
+				mmap->size, mmap->addr_high, mmap->addr_low, 
+				mmap->len_high, mmap->len_low, mmap->type );
+		}
+		*/
 	} else {
 		PANIC( "Have no mmap" );
 	}
@@ -284,7 +302,7 @@ void init_paging( multiboot_header_t *mboot_h ){
 	for ( i = 1; i < 1024; i++ )
 		kernel_dir->tables[i] = 0;
 
-	map_pages( 0, placement + PAGE_SIZE * 400, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
+	map_pages( 0, placement + PAGE_SIZE * 400,  PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
 	map_pages( KHEAP_START, KHEAP_START + KHEAP_SIZE + PAGE_SIZE,   PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, kernel_dir );
 
 	register_interrupt_handler( 0xe, page_fault_handler );

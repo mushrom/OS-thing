@@ -7,5 +7,6 @@ void *memset( void *, unsigned char, unsigned int );
 void *memsetw( void *, unsigned char, unsigned int );
 void *memcpy( void *, void *, unsigned int );
 void *memmove( void *, void *, unsigned int );
+char *strcpy( char *, char * );
 
 #endif

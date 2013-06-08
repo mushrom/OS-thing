@@ -5,7 +5,7 @@
 
 isr_t interrupt_handlers[256];
 unsigned long 	isr_error_count = 0,
-		error_threshold = 3;
+		error_threshold = 10;
 
 void isr_handler( registers_t regs ){
 	if ( interrupt_handlers[regs.int_no] != 0 ){
@@ -29,7 +29,7 @@ void irq_handler( registers_t regs ){
 	}
 }
 
-void end_bad_task( void ){
+void signal_bad_task( signal_t signal ){
 #ifdef RECOVER_FROM_PANIC
 	extern task_t *current_task;
 	if ( !current_task )
@@ -44,7 +44,8 @@ void end_bad_task( void ){
 	if ( getpid() == 1 )
 		PANIC( "First thread faulted, cannot end." );
 
-	exit_thread();
+	handle_signal( current_task, signal );
+	//exit_thread();
 #else
 	PANIC( "Kernel panic" );
 #endif
@@ -71,20 +72,23 @@ void dump_registers( registers_t *regs ){
 void zero_division_fault( registers_t *regs ){
 	printf( "Zero division fault\n" );
 	dump_registers( regs );
-	end_bad_task( );
+	//end_bad_task( );
+	signal_bad_task( SIGFPE );
 }
 
 void invalid_op_fault( registers_t *regs ){
 	printf( "Invalid opcode\n" );
 	dump_registers( regs );
-	end_bad_task( );
+	//end_bad_task( );
+	signal_bad_task( SIGILL );
 }
 
 void gen_protect_fault( registers_t *regs ){
 	printf( "General protection fault\n" );
 	dump_registers( regs );
-	end_bad_task( );
+	//end_bad_task( );
 
+	signal_bad_task( SIGBUS );
 	//PANIC( "General protection fault" );
 }
 
@@ -93,6 +97,7 @@ void double_fault( registers_t *regs ){
 	dump_registers( regs );
 
 	PANIC( "Welp..." );
+	while( 1 ) asm ( "hlt" );
 }
 
 #endif

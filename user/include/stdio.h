@@ -9,6 +9,10 @@
 typedef unsigned long size_t;
 
 int printf( char *, ... );
+void putc( int c, int fd );
+void putchar( int c );
+int getc( int fd );
+int getchar( );
 void print_num( unsigned long input );
 void print_hex( unsigned long input );
 int atoi( char * );

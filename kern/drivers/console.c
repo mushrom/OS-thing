@@ -91,7 +91,7 @@ static int console_write( file_node_t *node, void *buf, unsigned long size ){
 }
 
 static int console_pwrite( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
-	printf( "[pwrite 0x%x\n", buf );
+	//printf( "[pwrite 0x%x\n", buf );
 	return console_write( node, buf, size );
 }
 
@@ -103,6 +103,7 @@ void init_console(){
 	console_driver.type	= FS_CHAR_D;
 	console_driver.write	= console_write;
 	console_driver.pwrite	= console_pwrite;
+	console_driver.mask	= 0777;
 
 	devfs_register_device( console_driver );
 }

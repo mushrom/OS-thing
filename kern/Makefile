@@ -10,7 +10,7 @@ CFLAGS     = -nostartfiles -nodefaultlibs -nostdlib -fno-builtin \
 		-Wall -DARCH=$(ARCH) -I$(shell pwd)/include
 CONFIG_C_FLAGS = 
 CFLAGS 	  += $(CONFIG_C_FLAGS)
-LDFLAGS    = -T kern/linker.ld
+LDFLAGS    = -T linker.ld
 LINKFILES  = $(KNAME).bin 
 
 KFILES	  += $(shell find sys kern lib fs mem drivers -name "*.[c,s]" ) 

@@ -75,10 +75,11 @@ void register_shell_func( char *name, shell_func_t function ){
 }
 
 void kshell( void ){
-	char *cmd, **args, *PS1 = "[\x12shell\x17] # ";
+	char *cmd, **args, *PS1 = "\x12shell\x18@\x17kernel # ";
 	unsigned char buf = 0;
 	//fs_cwd = fs_root;
 	int running = 1, i = 0, j = 0, arg_no = 0, cmd_found = 0;
+	int in_fd = open( "/dev/kb0", O_RDONLY );
 
 	cmd  = (void *)kmalloc( STR_LIMIT, 0, 0 );
 	args = (void *)kmalloc( STR_LIMIT, 0, 0 );
@@ -88,11 +89,11 @@ void kshell( void ){
 		printf( "%s", PS1 );
 
 		/* Get input */
-		pause();
 		cmd_found = 0;
+		read( in_fd, &buf, 1 );
 		j = 0;
-		buf = 0;
-		for ( i = 0; ( buf = get_in_char()) != '\n' && i < STR_LIMIT; ){
+		//buf = 0;
+		for ( i = 0; buf != '\n' && i < STR_LIMIT; ){
 			if ( buf == '\b' ){
 				cmd[i] = 0;
 				if ( i > 0 ){
@@ -103,7 +104,7 @@ void kshell( void ){
 				cmd[i++] = buf;
 				kputchar( buf );
 			}
-			pause();
+			read( in_fd, &buf, 1 );
 		}
 		kputchar( '\n' );
 		cmd[i] = 0;
@@ -204,7 +205,7 @@ int  sh_list( int argc, char **argv ){
 
 int sh_write( int argc, char **argv ){
 	if ( argc < 3 ) return 1;
-	int fp = syscall_open( argv[1], 0 ), bytes = 0;
+	int fp = syscall_open( argv[1], O_CREAT ), bytes = 0;
 	printf( "Got fd %d\n", fp );
 
 	if ( fp == -1 ){

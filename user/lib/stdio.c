@@ -48,13 +48,31 @@ int printf( char *format, ... ){
 	return 0;
 }
 
+void putc( int c, int fd ){
+	syscall_write( fd, &c, 1 );
+}
+
+void putchar( int c ){
+	putc( c, stdout );
+}
+
+int getc( int fd ){
+	int ret;
+	syscall_read( fd, &ret, 1 );
+	return ret;
+}
+
+int getchar( ){
+	return getc( stdin );
+}
+
 void print_num( unsigned long input ){
 	unsigned int a = input, r = a, d = 0, i = 0;
 	char buf[16], temp;
 
 	if ( !input ){
 		temp = '0';
-		syscall_write( stdout, '0', 1 );
+		syscall_write( stdout, &temp, 1 );
 	}
 
 	for ( i = 0 ; a; r = a = d ){
@@ -72,7 +90,7 @@ void print_hex( unsigned long input ){
 
 	if ( !input ){
 		temp = '0';
-		syscall_write( stdout, '0', 1 );
+		syscall_write( stdout, &temp, 1 );
 	}
 	
 	for ( i = 0; a; r = a = d ){

@@ -48,6 +48,7 @@ void init_devfs( void ){
 	test.find_node		= devfs_find_node;
 	test.read		= meh_read;
 	test.pread		= meh_pread;
+	test.mask 		= 0777;
 	devfs_register_device( test );
 
 	memset( &test, 0, sizeof( file_node_t ));
@@ -57,6 +58,7 @@ void init_devfs( void ){
 	test.read		= null_read;
 	test.pread		= null_pread;
 	test.write		= null_write;
+	test.mask 		= 0777;
 	devfs_register_device( test );
 }
 

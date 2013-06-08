@@ -16,6 +16,8 @@ int load_elf( int fd, char **argv, char **envp ){
 
 	Elf32_Ehdr elf_header;
 	Elf32_Phdr phbuf;
+	memset( &elf_header, 0, sizeof( Elf32_Ehdr ));
+	memset( &phbuf, 0, sizeof( Elf32_Phdr ));
 	//Elf32_Shdr shbuf;
 	int ret = read( fd, &elf_header, sizeof( Elf32_Ehdr ));
 	char *buf = (char *)&elf_header;
@@ -43,8 +45,19 @@ int load_elf( int fd, char **argv, char **envp ){
 	//printf( "[debug] entry: 0x%x\tsections: 0x%x\n", elf_header.e_entry, elf_header.e_shnum );
 	//printf( "[debuf] program header offset: 0x%x, %d pheads, size: %d\n", 
 	//		elf_header.e_phoff, elf_header.e_phnum, elf_header.e_phentsize );
-	page_dir_t *new_dir = clone_page_dir( current_task->dir );
+	//page_dir_t *new_dir = clone_page_dir( current_task->dir );
+	
+	asm volatile( "cli" );
+	extern page_dir_t *kernel_dir;
+	page_dir_t *old_dir = current_task->dir;
+	//set_page_dir( kernel_dir );
+	page_dir_t *new_dir = clone_page_dir( kernel_dir );
+	//page_dir_t *new_dir = clone_page_dir( current_task->dir );
 	set_page_dir( new_dir );
+	//printf( "kernel: 0x%x, current: 0x%x, new: 0x%x\n", kernel_dir->address, current_task->dir->address, new_dir->address );
+	//set_page_dir( old_dir );
+
+	//return 0;
 
 	for ( i = 0; i < elf_header.e_phnum; i++ ){
 		lseek( fd, elf_header.e_phoff + ( i * elf_header.e_phentsize ), 0 );
@@ -58,18 +71,20 @@ int load_elf( int fd, char **argv, char **envp ){
 		lseek( fd, phbuf.p_offset, 0 );
 		read( fd, buf, phbuf.p_filesz );
 
-		extern page_dir_t *kernel_dir;
 		map_pages( phbuf.p_vaddr, phbuf.p_vaddr + phbuf.p_memsz, 7, new_dir );
 		flush_tlb();
 		memcpy((void *)phbuf.p_vaddr, buf, phbuf.p_filesz );
 		kfree( buf );
 	}
 
-	create_process((void *)elf_header.e_entry, argv, envp, phbuf.p_vaddr, phbuf.p_vaddr + phbuf.p_memsz );
+	/*ret =*/ create_process((void *)elf_header.e_entry, argv, envp, phbuf.p_vaddr, phbuf.p_vaddr + phbuf.p_memsz );
+	set_page_dir( old_dir );
+	asm volatile( "sti" );
 	
 	//free_pages( 0x8000000, 0x8050000, current_task->dir );
 	//flush_tlb();
 	return 0;
+	return ret;
 }
 
 #endif

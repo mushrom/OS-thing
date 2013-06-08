@@ -36,6 +36,7 @@ void init_initrd( initrd_header_t *header ){
 	initrd_root->closedir	= vfs_closedir;
 	initrd_root->find_node	= initrd_find_node;
 	initrd_root->type	= FS_DIR;
+	initrd_root->mask	= 0777;
 
 	for ( i = 0; i < header->nfiles; i++, initrd_root->dirp->dir_ptr++ ){
 		initrd_root->dirp->dir[i] = (void *)kmalloc( sizeof( struct dirent ), 0, 0 );
@@ -50,7 +51,7 @@ void init_initrd( initrd_header_t *header ){
 		initrd_root->dirp->dir[i]->inode = initrd_i_count++;
 		initrd_root->dirp->dir_count++;
 
-		initrd_nodes[j]->mask		= INITRD_MAGIC;
+		initrd_nodes[j]->mask		= 0777;
 		initrd_nodes[j]->size		= files[i].length;
 		initrd_nodes[j]->type		= FS_FILE;
 
@@ -71,15 +72,17 @@ void init_initrd( initrd_header_t *header ){
 	data_offset = ( sizeof( initrd_file_header_t ) * header->nfiles ) + sizeof( initrd_header_t );
 	data = (char *)header;
 		
-	extern file_node_t *fs_root;
-	file_node_t *temp = fs_find_node( fs_root, "init", 1 );
+	//extern file_node_t *fs_root;
+	//file_node_t *temp = fs_find_node( fs_root, "init", 1 );
+	file_node_t *temp = fs_find_path( "/sbin", 1 );
 	//file_node_t *temp = fs_find_path( "/init", 1 );
 	/*
 	if ( temp )
 		temp->mount = initrd_root;
 	*/
 
-	fs_mount( initrd_root, temp, 0, 0 );
+	if ( temp )
+		fs_mount( initrd_root, temp, 0, 0 );
 
 	/*
 	printf( "\x17%x:%x:%d\n", data, header, i );

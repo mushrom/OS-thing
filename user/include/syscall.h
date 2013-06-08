@@ -55,25 +55,30 @@ DECL_SYSCALL3(	read, 	int, void *, unsigned long );
 
 DECL_SYSCALL3(	write, 	int, void *, unsigned long );
 DECL_SYSCALL3(	lseek,  int, long, int );
-DECL_SYSCALL2(	lstat,	int, struct vfs_stat * );
+DECL_SYSCALL2(	lstat,	char *, struct vfs_stat * );
 DECL_SYSCALL2(	fdopendir_c, int, struct dirp * );
 DECL_SYSCALL3(	readdir_c, int, struct dirp *, struct dirent * ); 
+
 DECL_SYSCALL2(	mkdir, char *, int );
 DECL_SYSCALL1(	chdir,  char *);
-
 DECL_SYSCALL1(	chroot, char *);
 DECL_SYSCALL4(	mount, char *, char *, int, void * );
 DECL_SYSCALL2(	unmount, char *, int );
+
 DECL_SYSCALL0(	getpid );
 DECL_SYSCALL3(	fspawn, int, char **, char ** );
-
 DECL_SYSCALL1(	thread, void *);
+DECL_SYSCALL1(	wait, int * );
+DECL_SYSCALL2(	kill, int, int );
+
 DECL_SYSCALL2(	send_msg, unsigned long, ipc_msg_t *);
 DECL_SYSCALL2(	get_msg, unsigned long, ipc_msg_t *);
 DECL_SYSCALL1(	kputs, char *);
 DECL_SYSCALL2(	load_module, char *, int );
-
 DECL_SYSCALL1(	sbrk, 	int 		);
+
+DECL_SYSCALL2(	signal,	int, void * );
+DECL_SYSCALL1(	sigreturn, int );
 
 #define exit	syscall_exit
 #define open	syscall_open
@@ -87,8 +92,12 @@ DECL_SYSCALL1(	sbrk, 	int 		);
 #define unmount	syscall_unmount
 #define getpid	syscall_getpid
 #define fspawn  syscall_fspawn
+#define kill	syscall_kill
+#define wait	syscall_wait
 #define fdopendir_c syscall_fdopendir_c
 #define readdir_c syscall_readdir_c
 #define sbrk	(void *)syscall_sbrk
+#define signal	syscall_signal
+#define sigreturn syscall_sigreturn
 
 #endif

@@ -58,4 +58,8 @@ void *memmove( void *dest, void *src, unsigned int count ){
 	return dest;
 }
 
+char *strcpy( char *dest, char *src ){
+	return memcpy( dest, src, strlen( src ));
+}
+
 #endif

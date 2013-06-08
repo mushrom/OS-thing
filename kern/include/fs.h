@@ -1,8 +1,10 @@
 #ifndef _kernel_fs_h
 #define _kernel_fs_h
+
 #define MAX_NAME_LEN	256
 #define MAX_DIRS 	256
 #define MAX_INODES	64
+
 #include <alloc.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,7 +31,19 @@ enum {
 	O_CREAT		= 64,
 	O_TRUNC		= 128
 };
+
+enum {
+	P_READ = 4,
+	P_WRITE = 2,
+	P_EXEC = 1,
+
+	P_USHIFT = 6,
+	P_GSHIFT = 3,
+	P_ESHIFT = 0,
+};
+
 struct file_node;
+struct task;
 
 typedef int (*open_func)( struct file_node *, char *, int);
 typedef int (*write_func)( struct file_node *, void *, unsigned long );
@@ -40,6 +54,7 @@ typedef int (*ioctl_func)( struct file_node *, unsigned long, ... );
 typedef struct dirp *(*opendir_func)( struct file_node * );
 typedef int (*closedir_func)( struct file_node * );
 typedef int (*mkdir_func)( struct file_node *, char *, int );
+typedef int (*mknod_func)( struct file_node *, char *, int );
 typedef int (*close_func)( struct file_node * );
 typedef struct file_node *(*find_node_func)( struct file_node *, char *name, unsigned int links );
 
@@ -68,12 +83,14 @@ typedef struct file_node {
 	opendir_func	opendir;
 	closedir_func	closedir;
 	mkdir_func	mkdir;
+	mknod_func	mknod;
 	find_node_func	find_node;
 
 	open_func	open;
 	close_func	close;
 
 	struct file_node *mount;
+	struct file_node *parent;
 } file_node_t;
 
 typedef struct file_descript {
@@ -107,7 +124,6 @@ struct vfs_stat {
 	unsigned long	mask;
 };
 
-void init_vfs( void );
 
 /* Some generic functions for acting on fs nodes */
 int  fs_write( file_node_t *, void *, unsigned long );
@@ -128,9 +144,6 @@ int fs_mkdir( file_node_t *, char *name, unsigned long );
 
 struct dirent *fs_readdir_c( struct dirp *dir, struct dirent *buf ); 
 
-struct dirp *vfs_opendir( file_node_t * );
-int vfs_closedir( file_node_t * );
-
 file_node_t *fs_find_path( char *path, unsigned int links );
 int open( char *path, int flags );
 int close( int fd );
@@ -145,5 +158,11 @@ int lseek( int fd, long offset, int whence );
 int lstat( char *path, struct vfs_stat *buf );
 int mount( char *type, char *dir, int flags, void *data );
 int unmount( char *dir, int flags );
+
+struct dirp *vfs_opendir( file_node_t * );
+int vfs_closedir( file_node_t * );
+
+int isgoodfd( struct task *task, int fd );
+int check_perms( struct task *task, file_node_t *node, int flags );
 
 #endif

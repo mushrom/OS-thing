@@ -19,7 +19,7 @@ void init_tasking( ){
 	extern file_node_t *fs_root;
 
 	last_task = current_task = task_queue = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
-	memset( task_queue, 0, sizeof( task_t ));
+	memset((void *)task_queue, 0, sizeof( task_t ));
 
 	current_task->id = next_pid++;
 	current_task->parent = (task_t *)current_task;
@@ -45,11 +45,11 @@ void init_tasking( ){
 	current_task->argv = 0;
 	current_task->envp = 0;
 
-	int i = 0;
-	for ( i = 0; i < MAX_MSGS; i++ )
-		current_task->msg_buf[i] = 0;
-	for ( i = 0; i < MAX_FILES; i++ )
-		current_task->files[i] = 0;
+	current_task->msg_buf = 0;
+	current_task->files = (void *)kmalloc( sizeof( struct file_decript * ) * MAX_FILES, 0, 0 );
+	memset( current_task->files, 0, sizeof( struct file_descript * ) * MAX_FILES );
+
+	memset((void *)current_task->sighandle, 0, sizeof( ksignal_h ) * MAX_SIGNALS );
 
 	set_kernel_stack( current_task->stack );
 
@@ -64,11 +64,13 @@ void switch_task(){
 	if ( !current_task )
 		return;
 
-	unsigned long esp = 0, ebp = 0, eip = 0, check = 0;
+	asm volatile( "cli" );
+	unsigned long esp = 0, ebp = 0, eip = 0, eax = 0, check = 0;
 	task_t *temp = (task_t *)current_task;
 
 	eip = read_eip();
 	if ( check ){
+		asm volatile( "sti" );
 		return;
 	}
 	check = 1;
@@ -102,6 +104,16 @@ void switch_task(){
 
 	last_task = current_task;
 
+	if ( current_task->sig_queued && !current_task->in_sig && current_task->sighandle[ current_task->signal ]){
+		current_task->sig_queued = false;
+		current_task->in_sig = true;
+		current_task->old_eip = current_task->eip;
+		//asm volatile( "mov %%eax, %0" : "=r"(eax));
+		//current_task->old_eax = eax;
+		jmp_to_signal( current_task->signal, current_task->sighandle[ current_task->signal ]);
+		current_task->signal = 0;
+	}
+
 	eip = current_task->eip;
 	esp = current_task->esp;
 	ebp = current_task->ebp;
@@ -109,6 +121,7 @@ void switch_task(){
 	current_dir = current_task->dir;
 	set_page_dir( current_dir );
 
+	/*
 	*(unsigned *)(esp - 512) = 0;
 	if ( esp < 0xc0000000 && esp > 0x200000 ){
 		printf( "esp: 0x%x ebp: 0x%x  current_dir: 0x%x\n", esp, ebp, current_dir->address );
@@ -116,8 +129,9 @@ void switch_task(){
 		//asm volatile( "hlt" );
 		//return;
 	}
+	*/
 
-	//if ( isr_error_count ) isr_error_count--;
+	if ( isr_error_count ) isr_error_count--;
 
 	//set_kernel_stack( current_task->stack );
 	//set_kernel_stack( current_task->stack );
@@ -146,28 +160,13 @@ int create_process( void (*function)( int, char **, char ** ), char **argv, char
 	task_t *new_task = (task_t *)kmalloc( sizeof( task_t ), 0, 0 );
 	memset( new_task, 0, sizeof( task_t ));
 
-	printf( "task start: 0x%x, task end: 0x%x\n", start_addr, end_addr );
-	//*(char *)start_addr = 0;
+	//printf( "task start: 0x%x, task end: 0x%x\n", start_addr, end_addr );
 
 	init_task( new_task );
 	new_task->eip = (unsigned long)function;
-	//memset((void *)start_addr, 0, 0x1000 );
-	//new_task->ebp = new_task->stack = start_addr + KERNEL_STACK_SIZE;
-	//new_task->ebp = start_addr + PAGE_SIZE;
-	//kfree((void *) new_task->stack );
-	//new_task->stack = 0xb00c0000 + KERNEL_STACK_SIZE;
-	//new_task->stack = start_addr + PAGE_SIZE * 2;
-
-	//map_page( 0xbfff0000, 7, current_dir );
-	//map_pages( 0xb00c0000, 0xb00f0000, 7, current_dir );
-	//flush_tlb( );
-	//return 0;
-	/*
-	memcpy((char *)(0xbfff0000 + PAGE_SIZE), "hello\n", 7 );
-	printf( "%s", (char *)(start_addr + PAGE_SIZE ));
-	*/
 	new_task->start_addr = start_addr;
-	new_task->brk = new_task->end_addr = end_addr;
+	new_task->end_addr = end_addr;
+	new_task->brk = (char *)new_task->end_addr;
 
 	if ( argv )
 		for ( argc = 0; argv[argc]; argc++ );
@@ -177,17 +176,11 @@ int create_process( void (*function)( int, char **, char ** ), char **argv, char
 	/* Copy args for the new process */
 	new_task->stack -= sizeof( char * ) * argc + 1;
 	char **new_argv = (char **)new_task->stack;
-	/*
-	char **new_argv = (void *)kmalloc( sizeof( char * ) * argc + 1, 0, 0 );
-	*/
 	int i;
 	for ( i = 0; i < argc; i++ ){
 		new_task->stack -= strlen( argv[i] ) + 1;
-		new_argv[i] = new_task->stack;
+		new_argv[i] = (char *)new_task->stack;
 		memcpy( new_argv[i], argv[i], strlen( argv[i] ) + 1 );
-		/*
-		new_argv[i] = (char *)kmalloc( strlen( argv[i] ) + 1, 0, 0 );
-		*/
 	}
 	new_argv[i] = 0;
 
@@ -204,7 +197,8 @@ int create_process( void (*function)( int, char **, char ** ), char **argv, char
 	current_task->child_count++;
 
 	asm volatile( "sti" );
-	return new_task->id;
+	//return 0;
+	//return new_task->id;
 }
 
 /** \brief Adds new thread to task queue
@@ -218,6 +212,8 @@ int create_thread( void (*function)()){
 	memset( new_task, 0, sizeof( task_t ));
 
 	init_task( new_task );
+	new_task->start_addr = current_task->start_addr;
+	new_task->end_addr = current_task->end_addr;
 	new_task->eip = (unsigned long)function;
 	new_task->argv = current_task->argv;
 	new_task->envp = current_task->envp;
@@ -245,11 +241,11 @@ task_t *init_task( task_t *task ){
 	task->esp = task->stack;
 	task->ebp = current_task->ebp;
 
-	int i = 0;
-	for ( i = 0; i < MAX_MSGS; i++ )
-		task->msg_buf[i] = 0;
-	for ( i = 0; i < MAX_FILES; i++ )
-		task->files[i] = 0;
+	task->msg_buf = 0;
+	task->files = (void *)kmalloc( sizeof( struct file_decript * ) * MAX_FILES, 0, 0 );
+	memset( task->files, 0, sizeof( struct file_descript * ) * MAX_FILES );
+
+	memset((void *)task->sighandle, 0, sizeof( ksignal_h ) * MAX_SIGNALS );
 
 	task->msg_ptr    = 0;
 	task->msg_count  = 0;
@@ -274,28 +270,31 @@ void fork_thread( void ){
 	//exit_thread();
 }
 
-/** \brief Removes calling task from queue */
-void exit_thread( ){
+void remove_task( task_t *task ){
 	asm volatile( "cli" );
-	task_t *temp = (task_t *)current_task;
+	task_t *temp = (task_t *)task;
 	task_t *move = (task_t *)task_queue;
 
 	while ( move->next && move->next != temp ) move = move->next;
 	move->next = temp->next;
 
-	printf( "parent %d waiting: %d\n", current_task->parent->id, current_task->parent->waiting );
-	if ( current_task->parent->waiting ){
-		current_task->parent->waiting 	= false;
-		current_task->parent->child	= current_task->id;
+	//printf( "parent %d waiting: %d\n", task->parent->id, task->parent->waiting );
+	if ( task->parent->waiting ){
+		task->parent->waiting 	= false;
+		task->parent->child	= task->id;
 	}
 
-	if ( current_task->parent->child_count ){
-		current_task->parent->child_count--;
+	if ( task->parent->child_count ){
+		task->parent->child_count--;
 	}
-
-	printf( "pid %d exited\n", temp->id );
-	switch_task();
 	asm volatile( "sti" );
+}
+
+/** \brief Removes calling task from queue */
+void exit_thread( ){
+	asm volatile( "cli" );
+	remove_task( current_task );
+	switch_task( );
 }
 
 /** \brief Removes a pid from task queue
@@ -311,11 +310,7 @@ int kill_thread( unsigned long pid ){
 		asm volatile( "sti" );
 		return 1;
 	}
-	while ( move->next && move->next != temp )
-		move = move->next;
-
-	printf( "[kill] Killing pid %d\n", temp->id );
-	move->next = temp->next;
+	remove_task( temp );
 
 	asm volatile( "sti" );
 	return 0;
@@ -332,63 +327,6 @@ void sleep_thread( unsigned long time ){
 
 	switch_task();
 	asm volatile( "sti" );
-}
-
-/** \brief Recieve a message from another process
- * @param buf Buffer to read message into
- * @param blocking Whether to block the thread or not
- * @return 0 if a message was recieved, or 1 if there were no messages.
- */
-int get_msg( unsigned long blocking, ipc_msg_t *buf ){
-	asm volatile( "cli" );
-	task_t *temp = (task_t *)current_task;
-	unsigned int i = 0;
-	int ret = 1;
-	asm volatile( "sti" );
-
-	do {
-		asm volatile( "cli" );
-		if ( temp->msg_count ){
-			i = temp->msg_ptr-- % MAX_MSGS;
-			memcpy( buf, temp->msg_buf[i], sizeof( ipc_msg_t ));
-			temp->msg_count = (temp->msg_count - 1) % MAX_MSGS;
-			ret = 0;
-			break;
-		} else {
-			ret = 1;
-			temp->status = S_LISTENING;
-			switch_task();
-		}
-		asm volatile( "sti" );
-	} while ( blocking && !ret );
-
-	asm volatile( "sti" );
-	return ret;
-}
-
-/** \brief Send message to another process 
- * @param pid The pid to send to
- * @param msg Pointer to message buffer to send
- * @return 0 if sent, or 1 if the pid couldn't be found
- */
-int send_msg( unsigned long pid, ipc_msg_t *msg ){
-	asm volatile( "cli" );
-	task_t *temp = get_pid_task( pid );
-	unsigned int i = 0;
-
-	if ( !temp ){
-		asm volatile( "sti" );
-		return 1;
-	}
-
-	i = ++temp->msg_ptr % MAX_MSGS;
-	if ( !temp->msg_buf[i] )
-		temp->msg_buf[i] = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0 );
-	memcpy( temp->msg_buf[i], msg, sizeof( ipc_msg_t ));
-	temp->msg_count = (temp->msg_count + 1) % MAX_MSGS;
-
-	asm volatile( "sti" );
-	return 0;
 }
 
 /** \brief Get the \ref task_t structure of a certain pid
@@ -461,6 +399,13 @@ int wait( int *status ){
 	return current_task->child;
 }
 
+void *sbrk( int inc ){
+	char *ret = current_task->brk;
+	current_task->end_addr += inc;
+
+	return (void *)ret;
+}
+
 /** \brief Dump all running pids to screen */
 void dump_pids( void ){
 	task_t *temp = (task_t *)task_queue;
@@ -504,7 +449,7 @@ void dump_pids( void ){
 
 /** \brief Switch to user mode. (What's on the tin...) */
 void switch_to_usermode( void ){
-	set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
+	set_kernel_stack( current_task->stack );
 
 	asm volatile( "		\
 		cli;		\
@@ -530,7 +475,7 @@ void switch_to_usermode( void ){
 
 /** Switch to user mode, and return to a specific address. */
 void switch_to_usermode_jmp( unsigned long addr ){
-	set_kernel_stack( current_task->stack + KERNEL_STACK_SIZE );
+	//set_kernel_stack( current_task->stack );
 
 	asm volatile( "		\
 		cli;		\
@@ -553,12 +498,6 @@ void switch_to_usermode_jmp( unsigned long addr ){
 	":: "m"(addr));
 }
 
-void *sbrk( int inc ){
-	char *ret = current_task->brk;
-	current_task->end_addr += inc;
-
-	return (void *)ret;
-}
 
 /*
 void move_stack( void *new_stack_start, unsigned long size ){

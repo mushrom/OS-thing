@@ -10,7 +10,7 @@ DEFN_SYSCALL3(	read, 		4, int, void *, unsigned long );
 
 DEFN_SYSCALL3(	write, 		5, int, void *, unsigned long );
 DEFN_SYSCALL3(	lseek, 		6, int, long, int );
-DEFN_SYSCALL2(	lstat,		7, int, struct vfs_stat * );
+DEFN_SYSCALL2(	lstat,		7, char *, struct vfs_stat * );
 DEFN_SYSCALL2(	fdopendir_c,	8, int, struct dirp * );
 DEFN_SYSCALL3(	readdir_c,	9, int, struct dirp *, struct dirent * ); 
 DEFN_SYSCALL2(	mkdir,		10, char *, int );
@@ -24,13 +24,17 @@ DEFN_SYSCALL3(	fspawn, 	16, int, char **, char ** );
 
 DEFN_SYSCALL1(	thread, 	17, void *);
 DEFN_SYSCALL1(	wait,		18, int * );
-DEFN_SYSCALL1(	kill,		19, unsigned long );
+DEFN_SYSCALL2(	kill,		19, int, int );
 DEFN_SYSCALL2(	send_msg, 	20, unsigned long, ipc_msg_t *);
 DEFN_SYSCALL2(	get_msg, 	21, unsigned long, ipc_msg_t *);
 
 DEFN_SYSCALL1(	kputs, 		22, char *);
 DEFN_SYSCALL2(	load_module, 	23, char *, int );
-// Syscalls reserved for kernel
+// Syscalls reserved for kernel 24
+// 				25
 DEFN_SYSCALL1(	sbrk, 		26, int );
+
+DEFN_SYSCALL2(	signal,		27, int, void * )
+DEFN_SYSCALL1(	sigreturn,	28, int )
 
 #endif

@@ -90,6 +90,7 @@ void init_keyboard( void ){
 	kb_driver.type	= FS_CHAR_D;
 	kb_driver.read	= read_kb;
 	kb_driver.pread	= pread_kb;
+	kb_driver.mask = 0777;
 
 	devfs_register_device( kb_driver );
 	register_interrupt_handler( IRQ1, &keyboard_handler );

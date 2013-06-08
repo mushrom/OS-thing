@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <kmacros.h>
 #include <task.h>
+#include <signal.h>
 
 #define IRQ0 32
 #define IRQ1 33
@@ -40,7 +41,7 @@ void invalid_op_fault( registers_t *regs );
 void gen_protect_fault( registers_t *regs );
 void double_fault( registers_t *regs );
 
-void end_bad_task( void );
+void signal_bad_task( signal_t signal );
 
 #include <stdio.h>
 

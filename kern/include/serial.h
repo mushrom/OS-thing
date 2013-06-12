@@ -5,6 +5,6 @@
 #include <fs.h>
 #include <devfs.h>
 
-void init_serial( void );
+file_node_t *serial_create( );
 
 #endif

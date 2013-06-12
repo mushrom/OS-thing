@@ -37,10 +37,13 @@ file_node_t *fs_find_path( char *input_path, unsigned int links ){
 		while ( path[0] == '/' )
 			path++;
 	} else {
-		if ( current_task )
+		if ( current_task ){
+		//	path = current_task->cwd->name;
 			fp = current_task->cwd;
-		else
+		} else {
+		//	path = fs_root->name;
 			fp = fs_root;
+		}
 	}
 
 	ret = fs_find_node( fp, path, links );
@@ -94,9 +97,10 @@ int open( char *path, int flags ){
 	file_node_t *fp = fs_find_path( path, 1 );
 	unsigned long i = 0;
 	char *p, *temp;
-	int ret = 0;
+	int ret = 0, found;
 	
 	if ( !fp ){
+		found = 0;
 		if ( flags & O_CREAT ){
 			temp = path;
 			p = temp = (void *)kmalloc( strlen( path + 1 ), 0, 0 );
@@ -117,6 +121,8 @@ int open( char *path, int flags ){
 			
 			return -1;
 		}
+	} else {
+		found = 1;
 	}
 
 	if ( current_task->file_count >= MAX_FILES )
@@ -141,12 +147,11 @@ int open( char *path, int flags ){
 	//printf( "opening \"%s\"\n", temp );
 	ret = fs_open( fp, temp, flags );
 
-	/*
 	if ( ret < 0 )
 		return ret;
-	*/
 
-	fp = fs_find_path( path, 1 );
+	if ( !found )
+		fp = fs_find_path( path, 1 );
 
 	if ( !fp )
 		return -1;
@@ -164,6 +169,7 @@ int open( char *path, int flags ){
 /* TODO:
  * 	get rid of these
  */
+/*
 struct dirp *vfs_opendir( file_node_t *node ){ DEBUG_HERE
 	node->dirp->dir_ptr = 0;
 	return node->dirp;
@@ -172,6 +178,7 @@ struct dirp *vfs_opendir( file_node_t *node ){ DEBUG_HERE
 int vfs_closedir( file_node_t *node ){ DEBUG_HERE
 	return 0;
 }
+*/
 
 int close( int fd ){
 	if ( !isgoodfd( current_task, fd ))
@@ -181,7 +188,7 @@ int close( int fd ){
 
 	int ret;
 
-	ret = fs_close( current_task->files[fd] );
+	ret = fs_close( current_task->files[fd]->file );
 	current_task->files[fd] = 0;
 	current_task->file_count--;
 	return ret;
@@ -210,6 +217,7 @@ int write( int fd, void *buf, unsigned long size ){
 	return i;
 }
 
+/*
 struct dirp *fdopendir_c( int fd, struct dirp *buf ){
 	if ( !isgoodfd( current_task, fd ))
 		return -1;
@@ -227,12 +235,13 @@ struct dirent *readdir_c( int fd, struct dirp *dir, struct dirent *buf ){
 	if ( !isgoodfd( current_task, fd ))
 		return -1;
 
-	if ( current_task->files[fd]->d_offset >= dir->dir_count || !dir )
+	if ( !dir || current_task->files[fd]->d_offset >= dir->dir_count )
 		return 0;
 
 	memcpy( buf, dir->dir[ current_task->files[fd]->d_offset++ ], sizeof( struct dirent ));
 	return buf;
 }
+*/
 
 int chdir( char *path ){
 	file_node_t *fp = fs_find_path( path, 1 );
@@ -412,6 +421,7 @@ int  fs_close( file_node_t *node ){ DEBUG_HERE
 		return -1;
 }
 
+/*
 struct dirp *fs_opendir( file_node_t *node ){ DEBUG_HERE
 	if ( node->opendir )
 		return node->opendir( node );
@@ -433,10 +443,19 @@ int fs_closedir( file_node_t *node ){ DEBUG_HERE
 	else 
 		return -1;
 }
+*/
 
 int fs_mkdir ( file_node_t *node, char *name, unsigned long mode ){ DEBUG_HERE
-	if ( node->dirp && node->mkdir ){ DEBUG_HERE
+	if ( node->type == FS_DIR && node->mkdir ){ DEBUG_HERE
 		return node->mkdir( node, name, mode );
+	} else { DEBUG_HERE
+		return -1;
+	}
+}
+
+int fs_mknod ( file_node_t *node, char *name, int mode, int dev ){ DEBUG_HERE
+	if ( node->type == FS_DIR && node->mknod ){ DEBUG_HERE
+		return node->mknod( node, name, mode, dev );
 	} else { DEBUG_HERE
 		return -1;
 	}
@@ -454,7 +473,7 @@ int fs_stat ( file_node_t *node, struct vfs_stat *buf ){
 }
 
 file_node_t *fs_find_node( file_node_t *node, char *name, unsigned int links ){ DEBUG_HERE
-	if ( node->dirp && node->find_node ){ DEBUG_HERE
+	if ( node->type == FS_DIR && node->find_node ){ DEBUG_HERE
 		return node->find_node( node, name, links );
 	} else { DEBUG_HERE
 		return 0;

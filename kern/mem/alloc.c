@@ -119,6 +119,7 @@ void free_f( heap_t *heap, void *ptr ){
 			if ( p->magics == KHEAP_FREED )
 				printf( "Likely a double-freed pointer.\n" );
 			PANIC( "bad free\n" );
+			while( 1 );
 		}
 	}
 }
@@ -158,8 +159,10 @@ void expand( heap_t *heap ){
 	map_pages( root + old_size, root + new_size + 0x100 + 0x10000, 7, current_dir );
 	flush_tlb( );
 
+	/*
 	if ( r_check++ )
 		PANIC( "Caught another expand" );
+	*/
 
 	heap->size = new_size/4;
 	heap->full = 0;

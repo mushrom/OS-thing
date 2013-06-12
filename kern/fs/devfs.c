@@ -4,69 +4,58 @@
 
 file_node_t 	**devfs_nodes;
 file_node_t	*devfs_root;
-extern file_node_t *fs_root;
 file_node_t 	*temp;
+extern file_node_t *fs_root;
 unsigned long	devfs_i_count = 1;
-int meh_read( file_node_t *node, void *buf, unsigned long size );
-int meh_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset );
-int null_read( file_node_t *node, void *buf, unsigned long size );
-int null_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset );
-int null_write( file_node_t *node, void *buf, unsigned long size );
+struct dirent 	**devfs_dirents;
+
+int devfs_open( file_node_t *node, char *path, int flags );
+int devfs_close( file_node_t *node );
 
 void init_devfs( void ){
+	/*
 	devfs_nodes = (void *)kmalloc( sizeof( file_node_t * ) * DEVFS_MAX_INODES, 0, 0 );
+	devfs_nodes = (void *)kmalloc( sizeof( struct dirent ) * DEVFS_MAX_INODES, 0, 0 );
 	devfs_root = devfs_nodes[0] = (void *)kmalloc( sizeof( file_node_t ), 0, 0 );
 	memset( devfs_root, 0, sizeof( file_node_t ));
 	
 	memcpy( devfs_root->name, "devfs", 6 );
 	devfs_root->type	= FS_DIR;
 	devfs_root->mask	= 0777;
-	devfs_root->dirp	= (void *)kmalloc(sizeof( struct dirp ), 0, 0 );
-	memset( devfs_root->dirp, 0, sizeof( struct dirp ));
+	//devfs_root->dirp	= (void *)kmalloc(sizeof( struct dirp ), 0, 0 );
+	//memset( devfs_root->dirp, 0, sizeof( struct dirp ));
 	devfs_root->inode	= 0;
 	devfs_root->opendir	= vfs_opendir;
 	devfs_root->closedir	= vfs_closedir;
 	devfs_root->find_node	= devfs_find_node;
+	devfs_root->open 	= devfs_open;
+	devfs_root->close	= devfs_close;
 
-	/*
-	if ( temp )
-		temp->mount = devfs_root;
-	*/
+	//if ( temp )
+	//	temp->mount = devfs_root;
+
 	temp = fs_find_node( fs_root, "dev", 1 );
 	if (( fs_mount( devfs_root, temp, 0, 0 )) < 0 ){
 		printf( "    Could not mount devfs\n" );
 	} else {
 		printf( "    Mounted devfs\n" );
 	}
-	//temp->find_node		= devfs_find_node;
+	*/
 
-	/* A small testing device, prints out a-z when read */
-	file_node_t test;
-	memset( &test, 0, sizeof( file_node_t ));
-	memcpy( test.name, "abc0", 5 );
-	test.type = FS_CHAR_D;
-	test.find_node		= devfs_find_node;
-	test.read		= meh_read;
-	test.pread		= meh_pread;
-	test.mask 		= 0777;
-	devfs_register_device( test );
-
-	memset( &test, 0, sizeof( file_node_t ));
-	memcpy( test.name, "null", 5 );
-	test.type = FS_CHAR_D;
-	test.find_node		= devfs_find_node;
-	test.read		= null_read;
-	test.pread		= null_pread;
-	test.write		= null_write;
-	test.mask 		= 0777;
-	devfs_register_device( test );
 }
 
-void devfs_register_device( file_node_t device ){
+int devfs_open( file_node_t *node, char *path, int flags ){
+	return 1;
+}
+
+int devfs_close( file_node_t *node ){
+	return 0;
+}
+
+void devfs_register_device( file_node_t *device ){
+	/*
 	unsigned int index;
-	file_node_t *new_device;
-	new_device = (void *)kmalloc( sizeof( file_node_t ), 0, 0 );
-	memcpy( new_device, &device, sizeof( file_node_t ));
+	file_node_t *new_device = device;
 
 	new_device->inode = devfs_i_count++;
 	new_device->find_node = devfs_find_node;
@@ -78,11 +67,11 @@ void devfs_register_device( file_node_t device ){
 	memcpy( devfs_root->dirp->dir[index]->name, new_device->name, MAX_NAME_LEN );
 	devfs_root->dirp->dir[ index ]->inode = new_device->inode;
 	devfs_root->dirp->dir_count++;
-
-	//printf( "    Added new device %s\n", devfs_nodes[ new_device->inode ]->name );
+	*/
 }
 
 file_node_t *devfs_find_node( file_node_t *node, char *name, unsigned int links ){ DEBUG_HERE 
+	/*
 	int i = 0, has_subdir = 0;
 	file_node_t *ret = 0;
 	char *sub_dir = 0;
@@ -112,39 +101,7 @@ file_node_t *devfs_find_node( file_node_t *node, char *name, unsigned int links 
 			}
 		}
 	}
+	*/
 	return 0;
 }
-
-int meh_read( file_node_t *node, void *buf, unsigned long size ){
-	int i;
-	 char *in = buf;
-	for ( i = 0; i < size; i++ ){
-		in[i] = 'a' + ( i % 26 );
-	}
-	//in[i] = 0;
-	return i;
-}
-
-int meh_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
-	int i;
-	char *in = buf;
-	for ( i = offset; i - offset < size; i++ ){
-		in[i-offset] = 'a' + ( i % 26 );
-	}
-	//in[i-offset] = 0;
-	return i-offset;
-}
-
-int null_read( file_node_t *node, void *buf, unsigned long size ){
-	return 0;
-}
-
-int null_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){
-	return 0;
-}
-
-int null_write( file_node_t *node, void *buf, unsigned long size ){
-	return size;
-}
-
 #endif

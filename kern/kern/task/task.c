@@ -164,9 +164,10 @@ int create_process( void (*function)( int, char **, char ** ), char **argv, char
 
 	init_task( new_task );
 	new_task->eip = (unsigned long)function;
-	new_task->start_addr = start_addr;
-	new_task->end_addr = end_addr;
-	new_task->brk = (char *)new_task->end_addr;
+	//new_task->start_addr = start_addr;
+	//new_task->end_addr = end_addr;
+	new_task->maps = memmap_create( start_addr, end_addr, MEM_READ | MEM_EXEC | MEM_USER, 1 );
+	new_task->brk = (char *)end_addr;
 
 	if ( argv )
 		for ( argc = 0; argv[argc]; argc++ );
@@ -192,6 +193,7 @@ int create_process( void (*function)( int, char **, char ** ), char **argv, char
 	PUSH( new_task->stack, argc );
 
 	new_task->esp = new_task->stack;
+	new_task->tid = 0;
 	
 	add_task( new_task );
 	current_task->child_count++;
@@ -212,13 +214,13 @@ int create_thread( void (*function)()){
 	memset( new_task, 0, sizeof( task_t ));
 
 	init_task( new_task );
-	new_task->start_addr = current_task->start_addr;
-	new_task->end_addr = current_task->end_addr;
+	new_task->maps = current_task->maps;
 	new_task->eip = (unsigned long)function;
 	new_task->argv = current_task->argv;
 	new_task->envp = current_task->envp;
 	add_task( new_task );
 	current_task->child_count++;
+	new_task->tid = current_task->tid++;
 
 	asm volatile( "sti" );
 	return new_task->id;
@@ -242,6 +244,7 @@ task_t *init_task( task_t *task ){
 	task->ebp = current_task->ebp;
 
 	task->msg_buf = 0;
+	task->tid = 0;
 	task->files = (void *)kmalloc( sizeof( struct file_decript * ) * MAX_FILES, 0, 0 );
 	memset( task->files, 0, sizeof( struct file_descript * ) * MAX_FILES );
 
@@ -287,6 +290,12 @@ void remove_task( task_t *task ){
 	if ( task->parent->child_count ){
 		task->parent->child_count--;
 	}
+
+	/*
+	if ( task->start_addr && task->end_addr && task->tid == 0 ){
+		free_pages( task->start_addr, task->end_addr, task->dir );
+	}
+	*/
 	asm volatile( "sti" );
 }
 
@@ -400,8 +409,15 @@ int wait( int *status ){
 }
 
 void *sbrk( int inc ){
+	memmap_t *map = memmaps_check( current_task->maps, current_task->brk );
+	/*
 	char *ret = current_task->brk;
-	current_task->end_addr += inc;
+	current_task->brk += inc;
+	*/
+	char *ret = current_task->brk;
+	printf( "[kern] got map 0x%x\n", map );
+	current_task->brk += inc;
+	map->end += inc;
 
 	return (void *)ret;
 }

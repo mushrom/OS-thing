@@ -17,8 +17,9 @@ typedef struct initrd_file_header {
 	uint32_t offset;
 	uint32_t length;
 	uint32_t magic;
+	uint8_t  type;
 } initrd_file_header_t;
 
-void init_initrd( initrd_header_t * );
+file_node_t *initrd_create( initrd_header_t * );
 
 #endif

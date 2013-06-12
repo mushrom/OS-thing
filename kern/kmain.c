@@ -32,10 +32,13 @@
 #include <multiboot.h>
 #include <timer.h>
 #include <init_tables.h>
+
 #include <kb.h>
 #include <ide.h>
 #include <fat.h>
 #include <serial.h>
+#include <null_device.h>
+#include <abc_device.h>
 
 #include <kconfig.h> 
 #include <kshell.h>
@@ -44,6 +47,7 @@
 #include <syscall.h>
 #include <module.h>
 #include <symbols.h>
+
 
 unsigned int initial_esp; 			/**< esp at start, is set to \ref initial_stack */
 unsigned int g_errline = 0;			/**< Error line of last debug, see \ref kmacros.h */
@@ -87,72 +91,112 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	} else {
 		printf( "[\x12+\x17] Multiboot found, header at 0x%x\n", mboot );
 		if ( mboot->flags & MULTIBOOT_FLAG_MEM ){
-			printf( "    mem low: %ukb, mem high: %ukb\n", mboot->mem_lower, mboot->mem_upper );
+			printf( "mem low: %ukb, mem high: %ukb\n", mboot->mem_lower, mboot->mem_upper );
 		} else { 
 			PANIC( "Multiboot header has no mem map" );
 		}
 		if ( mboot->flags & MULTIBOOT_FLAG_CMDLINE ){
-			printf( "    cmd = %s\n", mboot->cmdline );
+			printf( "cmd = %s\n", mboot->cmdline );
 		}
-		if ( mboot->mods_count && mboot->flags & MULTIBOOT_FLAG_MODS ){
+		if ( mboot->flags & MULTIBOOT_FLAG_MODS && mboot->mods_count ){
 			initrd = (void *)*((int *)mboot->mods_addr);
 			initrd_size = *(int *)(mboot->mods_addr + 4 ) - (unsigned int)initrd;
-			printf( "    initrd size: %d bytes\n", initrd_size );
+			printf( "initrd size: %d bytes\n", initrd_size );
 
 			extern unsigned long placement;
-			//placement = (*(int *)(mboot->mods_addr + 4 ) & 0xfffff000) + 0x1000;
 			placement = *(int *)(mboot->mods_addr + 4 );
-			//placement += *(int *)(mboot->mods_addr + 4 );
-			printf( "    new placement: 0x%x\n", placement );
 		} else {
-			printf( "    No multiboot modules loaded\n" );
+			printf( "No multiboot modules loaded\n" );
 		}
 		g_mboot_header = mboot;
 	}
 
-	init_tables(); 		kputs( "[\x12+\x17] initialised tables\n" );
-	init_timer(TIMER_FREQ);	kputs( "[\x12+\x17] Initialised timer\n" );
+	init_tables(); 			
+	init_timer(TIMER_FREQ);		
 	asm volatile ( "sti" );
-	init_paging( mboot ); 		printf( "[\x12+\x17] initialised paging\n" );
-	//kernel_dir = current_dir;
-	//printf( "&0x%x: 0x%x->0x%x\n", &kernel_dir, kernel_dir, kernel_dir->address );
+	init_paging( mboot ); 		
 
-	ksymbol_table = init_symbol_bin( 128 ); printf( "[\x12+\x17] initialised kernel symbol table\n" );
+	ksymbol_table = init_symbol_bin( 128 ); 
 	kexport_symbol( "printf", (unsigned long)printf );
 
 	file_node_t *temp = init_vfs();
-	fs_mkdir( temp, "dev", 0777 );
-	fs_mkdir( temp, "sbin", 0777 );
-	//fs_mkdir( temp, "init/bin", 0777 );
-	set_fs_root( temp ); 	printf( "[\x12+\x17] initialised vfs\n" );
-	init_devfs();		printf( "[\x12+\x17] initialised + mounted devfs\n" );
+	printf( "Got here\n" );
+	fs_mkdir( temp, "dev", 0700 );
+	fs_mkdir( temp, "sbin", 0700 );
+	set_fs_root( temp ); 	
 
+	//init_devfs();		
+
+
+	init_syscalls(); 	
+	init_tasking(); 
+
+	//init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
+	
 	if ( initrd ){
-		init_initrd( initrd ); 	
-		printf( "[\x12+\x17] initialised initrd\n" );
+		//initrd_create( initrd ); 	
 	}
 
-	init_syscalls(); 	kputs( "[\x12+\x17] Initialised syscalls\n" );
-	init_tasking(); 	printf( "[\x12+\x17] initialised tasking\n" );
+	temp = fs_find_path( "/dev", 1 );
+	fs_mknod( temp, "kb0", 0777, FS_CHAR_D );
+	fs_mknod( temp, "tty", 0777, FS_CHAR_D );
+	fs_mknod( temp, "null", 0777, FS_CHAR_D );
+	fs_mknod( temp, "ser0", 0777, FS_CHAR_D );
 
+	temp = fs_find_path( "/dev/kb0", 1 );
+	fs_mount( keyboard_create( ), temp, 0, 0 );
+
+	temp = fs_find_path( "/dev/tty", 1 );
+	fs_mount( console_create( ), temp, 0, 0 );
+
+	temp = fs_find_path( "/dev/null", 1 );
+	fs_mount( null_create( ), temp, 0, 0 );
+
+	temp = fs_find_path( "/dev/ser0", 1 );
+	fs_mount( serial_create( ), temp, 0, 0 );
+
+	/*
+	*/
+	/*
+	fs_mount( temp, 
+	*/
+	/*
+	devfs_register_device( serial_create( ));
+	devfs_register_device( keyboard_create( ));
+	devfs_register_device( console_create( ));
+
+	devfs_register_device( null_create( ));
+	devfs_register_device( abc_create( ));
+	*/
+
+	char *long_idestr = "/dev/ide0";
+	char *idestr = long_idestr + 5;
+	file_node_t *buf;
+	int j = 0;
+	for ( j = 0; j < 4; j++, idestr[3]++ ){
+		buf = ide_create( j );
+		if ( buf ){
+			temp = fs_find_path( "/dev", 1 );
+			fs_mknod( temp, idestr, 0777, FS_BLOCK_D );
+			temp = fs_find_path( long_idestr, 1 );
+			fs_mount( buf, temp, 0, 0 );
+		}
+	}
+	/*
 	init_serial();
-	init_keyboard(); 	printf( "[+] initialised keyboard\n" );
+	init_keyboard(); 	
 	init_console();
 
-	//debug_file = open( "/dev/ser0", O_WRONLY );
-
 	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
-				printf( "[\x12+\x17] initialised ide\n" );
+	*/
 
+	ext2fs_dump_info( "/dev/ide1" );
 
 	printf( "    Kernel init finished: %d ticks\n", get_tick());
-
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
 
 	con_scroll_offset = 0;
 
-	//create_thread( &main_daemon );
-	//cls();
 	create_thread( &kinit_prompt );
 
 	while ( 1 ) sleep_thread( 0xffffffff );
@@ -170,7 +214,7 @@ void kinit_prompt( void ){
 	    l 	= 0,
 	    i 	= 0;
 
-	mkdir( "/user", 0777 );
+	//mkdir( "/user", 0777 );
 	//mkdir( "/user/dev", 0777 );
 	//mount( "/dev", "/user/dev", 0, 0 );
 
@@ -196,7 +240,7 @@ void kinit_prompt( void ){
 				}
 			}
 			if ( l == 4 ){
-				fd = syscall_open( args[i] + l + 1, 0 );
+				fd = syscall_open( args[i] + l + 1, O_EXEC );
 				if ( fd < 0 ){
 					printf( "Could not open init file\n" );
 					break;

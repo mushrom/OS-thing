@@ -85,7 +85,8 @@
 #define ATA_REG_ALTSTATUS  0x0C
 #define ATA_REG_DEVADDRESS 0x0D
 
-void init_ide( unsigned int, unsigned int, unsigned int, unsigned int, unsigned int );
+//void init_ide( unsigned int, unsigned int, unsigned int, unsigned int, unsigned int );
+file_node_t *ide_create( int drive );
 unsigned char ide_read( unsigned char, unsigned char );
 void ide_write( unsigned char, unsigned char, unsigned char );
 void ide_read_buffer( unsigned char, unsigned char, unsigned int, unsigned int );

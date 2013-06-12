@@ -9,6 +9,7 @@
 #include <fs.h>
 #include <elf.h>
 #include <common.h>
+#include <memmap.h>
 
 //#define KERNEL_STACK_SIZE 4096
 #define KERNEL_STACK_SIZE 0x800
@@ -32,11 +33,15 @@ typedef struct task {
 			esp,
 			ebp,
 			id,
+			tid,
 			uid,
 			gid;
 
+	/*
 	unsigned long start_addr;
 	unsigned long end_addr;
+	*/
+	struct memmap *maps;
 	unsigned long stack;
 	char *brk;
 	char **argv;

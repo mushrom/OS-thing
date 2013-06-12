@@ -13,6 +13,10 @@ void jmp_to_signal( unsigned long sig, ksignal_h handle ){
 		pushl $1;	\
 		pushl %%eax;	\
 		pushl $1;	\
+		pushl $2;	\
+		pushl $3;	\
+		pushl $4;	\
+		pushl $5;	\
 				\
 		mov $0x23, %%ax;\
 		mov %%ax, %%ds;	\

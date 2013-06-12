@@ -54,7 +54,7 @@ typedef int (*ioctl_func)( struct file_node *, unsigned long, ... );
 typedef struct dirp *(*opendir_func)( struct file_node * );
 typedef int (*closedir_func)( struct file_node * );
 typedef int (*mkdir_func)( struct file_node *, char *, int );
-typedef int (*mknod_func)( struct file_node *, char *, int );
+typedef int (*mknod_func)( struct file_node *, char *, int, int );
 typedef int (*close_func)( struct file_node * );
 typedef struct file_node *(*find_node_func)( struct file_node *, char *name, unsigned int links );
 
@@ -62,7 +62,7 @@ typedef struct file_node *(*find_node_func)( struct file_node *, char *name, uns
 typedef struct file_node {
 	file_type_t	type;
 
-	unsigned char	name[ MAX_NAME_LEN ];
+	char		name[ MAX_NAME_LEN ];
 	unsigned long 	mask;
 	unsigned long	uid;
 	unsigned long 	gid;
@@ -72,7 +72,6 @@ typedef struct file_node {
 	unsigned long	links;
 	unsigned long 	flags;
 	unsigned long	dev_id;
-	struct dirp 	*dirp;
 
 	read_func  	read;
 	pread_func  	pread;
@@ -80,8 +79,6 @@ typedef struct file_node {
 	pwrite_func 	pwrite;
 	ioctl_func  	ioctl;
 
-	opendir_func	opendir;
-	closedir_func	closedir;
 	mkdir_func	mkdir;
 	mknod_func	mknod;
 	find_node_func	find_node;
@@ -105,14 +102,16 @@ typedef struct vfs_file_header {
 } vfs_file_header_t;
 
 struct dirent {
-	unsigned char 	name[ MAX_NAME_LEN ];
+	char 	name[ MAX_NAME_LEN ];
 	unsigned long	inode;
 };
 
+/*
 struct dirp {
-	struct dirent *dir[ MAX_DIRS ];
 	unsigned long dir_count, dir_ptr;
+	struct dirent dir;
 };
+*/
 
 struct vfs_stat {
 	file_type_t 	type;
@@ -138,9 +137,12 @@ int fs_mount( file_node_t *type, file_node_t *dir, int flags, void *data );
 int fs_unmount( file_node_t *dir, int flags );
 file_node_t *fs_find_node( file_node_t *, char *, unsigned int );
 
+/*
 struct dirp *fs_opendir( file_node_t * );
 int fs_closedir( file_node_t * );
+*/
 int fs_mkdir( file_node_t *, char *name, unsigned long );
+int fs_mknod( file_node_t *, char *name, int mode, int dev );
 
 struct dirent *fs_readdir_c( struct dirp *dir, struct dirent *buf ); 
 
@@ -152,6 +154,7 @@ int write( int fd, void *buf, unsigned long size );
 struct dirp *fdopendir_c( int fd, struct dirp *dir );
 struct dirent *readdir_c( int fd, struct dirp *dir, struct dirent *buf );
 int mkdir( char *path, int mode );
+int mknod( char *path, int mode, int dev );
 int chdir( char *path );
 int chroot( char *path );
 int lseek( int fd, long offset, int whence );
@@ -164,5 +167,7 @@ int vfs_closedir( file_node_t * );
 
 int isgoodfd( struct task *task, int fd );
 int check_perms( struct task *task, file_node_t *node, int flags );
+
+void set_fs_root( file_node_t * );
 
 #endif

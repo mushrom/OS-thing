@@ -1,6 +1,7 @@
 #ifndef _kernel_console_h
 #define _kernel_console_h
 #include <string.h>
+#include <fs.h>
 #include <devfs.h>
 
 #define XSIZE 80
@@ -24,11 +25,13 @@
 #define COLOR_YELLOW 0x0e
 #define COLOR_WHITE  0x0f
 
+struct file_node;
+
 void cls( void );
 //void _kcheck_scroll( void );
 void kputchar( unsigned char );
 void kputs( char * );
 void set_color( unsigned char );
-void init_console();
+struct file_node *console_create( );
 
 #endif

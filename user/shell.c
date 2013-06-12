@@ -1,17 +1,26 @@
-#ifndef _kernel_shell_c
-#define _kernel_shell_c
-#include <kshell.h>
-
-#ifdef ENABLE_BUILTIN_SHELL
+#ifndef _user_shell_c
+#define _user_shell_c
+#include <string.h>
+#include <syscall.h>
+#include <fs.h>
+#include <stdio.h>
+#include <alloc.h>
+#include <signal.h>
+#include <ipc.h>
 
 #define STR_LIMIT 128 
 #define CMD_LIMIT 64
 
-extern file_node_t *fs_root;
-extern task_t 	   *current_task;
 //file_node_t *fs_cwd;
 int cmd_count = 0;
 //int cwd = 0;
+
+typedef int (*shell_func_t)( int argc, char **argv );
+typedef struct shell_command {
+	char *name;
+	char *help;
+	shell_func_t function;
+} shell_cmd_t;
 shell_cmd_t commands[ CMD_LIMIT ];
 
 int  sh_test( 	int argc, char **argv );
@@ -40,38 +49,38 @@ int sh_unmount( int argc, char **argv );
 int sh_chroot(	int argc, char **argv );
 int sh_dump( 	int argc, char **argv );
 
+void register_shell_func( char *name, shell_func_t function ){
+	commands[ cmd_count ].name = name;
+	commands[ cmd_count ].function = function;
+	cmd_count++;
+}
+
 void init_shell( ){
-	register_shell_func( "ls", sh_list );
+	//register_shell_func( "ls", sh_list );
 	register_shell_func( "cd", sh_cd );
 	register_shell_func( "write", sh_write );
 	register_shell_func( "read", sh_read );
 	register_shell_func( "mkdir", sh_mkdir );
-	register_shell_func( "clear", sh_clear );
-	register_shell_func( "debug", sh_debug );
+	//register_shell_func( "clear", sh_clear );
+	//register_shell_func( "debug", sh_debug );
 	register_shell_func( "help", sh_help );
 	register_shell_func( "test", sh_test );
 	register_shell_func( "atoi", sh_atoi );
-	register_shell_func( "sleep", sh_sleep );
-	//register_shell_func( "alloc", sh_alloc );
-	register_shell_func( "reboot", sh_reboot );
-	register_shell_func( "mem", sh_mem );
-	register_shell_func( "ps", sh_ps );
+	//register_shell_func( "sleep", sh_sleep );
+	register_shell_func( "alloc", sh_alloc );
+	//register_shell_func( "reboot", sh_reboot );
+	//register_shell_func( "mem", sh_mem );
+	//register_shell_func( "ps", sh_ps );
 	register_shell_func( "msg", sh_msg );
 	register_shell_func( "kill", sh_kill );
 	register_shell_func( "getmsg", sh_getmsg );
-	register_shell_func( "uptime", sh_uptime );
+	//register_shell_func( "uptime", sh_uptime );
 	//register_shell_func( "exec", sh_exec );
 	register_shell_func( "cat", sh_cat );
 	register_shell_func( "mount", sh_mount );
 	register_shell_func( "unmount", sh_unmount );
 	register_shell_func( "chroot", sh_chroot );
-	register_shell_func( "dump", sh_dump );
-}
-
-void register_shell_func( char *name, shell_func_t function ){
-	commands[ cmd_count ].name = name;
-	commands[ cmd_count ].function = function;
-	cmd_count++;
+	//register_shell_func( "dump", sh_dump );
 }
 
 void kshell( void ){
@@ -81,13 +90,8 @@ void kshell( void ){
 	int running = 1, i = 0, j = 0, arg_no = 0, cmd_found = 0, ret;
 	int in_fd = open( "/dev/kb0", O_RDONLY );
 
-	if ( in_fd < 0 ){
-		printf( "Could not open input device.\n" );
-		return;
-	}
-
-	cmd  = (void *)kmalloc( STR_LIMIT, 0, 0 );
-	args = (void *)kmalloc( STR_LIMIT, 0, 0 );
+	cmd  = malloc( STR_LIMIT );
+	args = malloc( STR_LIMIT );
 	args[0] = cmd;
 	
 	while ( running ){
@@ -95,11 +99,7 @@ void kshell( void ){
 
 		/* Get input */
 		cmd_found = 0;
-		i = read( in_fd, &buf, 1 );
-		if ( i <= 0 ){
-			printf( "Input file was closed.\n" );
-			return;
-		}
+		read( in_fd, &buf, 1 );
 		j = 0;
 		//buf = 0;
 		for ( i = 0; buf != '\n' && i < STR_LIMIT; ){
@@ -107,15 +107,15 @@ void kshell( void ){
 				cmd[i] = 0;
 				if ( i > 0 ){
 					i--;
-					kputchar( buf );
+					putchar( buf );
 				}
 			} else {
 				cmd[i++] = buf;
-				kputchar( buf );
+				putchar( buf );
 			}
 			read( in_fd, &buf, 1 );
 		}
-		kputchar( '\n' );
+		putchar( '\n' );
 		cmd[i] = 0;
 
 		/* Split input up */
@@ -137,24 +137,34 @@ void kshell( void ){
 
 		/* Find command */
 		for ( j = 0; j < cmd_count; j++ ){
-			if ( commands[j].name && commands[j].function && 
-				strcmp( args[0], commands[j].name ) == 0 ){
-				commands[j].function( arg_no, args );
-				cmd_found = 1;
+			//printf( "args[0]: \"%s\", commands[j].name: \"%s\"\n", args[0], commands[j].name );
+			if ( commands[j].name && commands[j].function && strcmp( args[0], commands[j].name ) == 0 ){
+					commands[j].function( arg_no, args );
+					cmd_found = 1;
 			}
 		}
 		if ( strcmp( args[0], "exit" ) == 0 ){
-			exit_thread();
+			exit( 0 );
 			return;
 		}
 		if ( !cmd_found && strlen( args[0] )){
-			if (( i = syscall_open( args[0], 1 )) < 0 || syscall_fexecve( i, args, 0 )){
+			if (( i = syscall_open( args[0], 1 )) < 0 || syscall_fspawn( i, args, 0 ))
 				printf( "Unknown command: \"%s\"\n", args[0] );
-			} else {
+			else {
 				wait( &ret );
-				syscall_close( i );
+				close( i );
 			}
 		}
+	}
+}
+
+int main( int argc, char *argv[] ){
+	int ret;
+	init_shell( );
+	while( 1 ){
+		kshell( );
+		//syscall_thread( kshell );
+		//wait( &ret );
 	}
 }
 
@@ -173,7 +183,7 @@ int sh_test( int argc, char **argv ){
 
 int sh_help( int argc, char **argv ){
 	int i;
-	printf( "obsidian kernel built-in shell v0.2\n"
+	printf( "obsidian shell v0.2\n"
 		"commands availible:\n" );
 	for ( i = 0; i < cmd_count; i++ ){
 		printf( "\t%s", commands[i].name );
@@ -184,7 +194,7 @@ int sh_help( int argc, char **argv ){
 }
 
 int sh_clear( int argc, char **argv ){
-	cls();
+	//cls();
 	return 0;
 }
 
@@ -194,18 +204,14 @@ int  sh_list( int argc, char **argv ){
 	if ( argc > 1 )
 		to_list = argv[1];
 
-	fp = open( to_list, O_RDONLY );
-
-	if ( fp < 0 )
-		printf( "Could not open directory.\n" );
-
-	//struct dirp dir, *d;
+	fp = open( to_list, 0 );
+	struct dirp dir, *d;
 	struct dirent entry;
 
-	//d = fdopendir_c( fp, &dir );
+	d = (struct dirp *)fdopendir_c( fp, &dir );
 
-	if ( fp ){
-		while ( read( fp, &entry, sizeof( struct dirent )) > 0 ){
+	if ( d ){
+		while (( readdir_c( fp, d, &entry ))){
 			printf( "%s\t", entry.name );
 			if ( ++items % 8 == 0 )
 				printf( "\n" );
@@ -220,7 +226,7 @@ int  sh_list( int argc, char **argv ){
 
 int sh_write( int argc, char **argv ){
 	if ( argc < 3 ) return 1;
-	int fp = syscall_open( argv[1], O_CREAT | O_WRONLY ), bytes = 0;
+	int fp = syscall_open( argv[1], O_CREAT ), bytes = 0;
 	printf( "Got fd %d\n", fp );
 
 	if ( fp == -1 ){
@@ -239,8 +245,8 @@ int sh_write( int argc, char **argv ){
 
 int  sh_read( int argc, char **argv ){
 	if ( argc < 2 ) return 1;
-	int fp = syscall_open( argv[1], O_RDONLY ), bytes = 0;
-	char *buf = (char *)kmalloc( 512, 0, 0 );
+	int fp = syscall_open( argv[1], 0 ), bytes = 0;
+	char *buf = (char *)malloc( 512 );
 
 	printf( "Got fd %d\n", fp );
 	if ( fp == -1 ){
@@ -321,7 +327,7 @@ int sh_sleep( int argc, char **argv ){
 
 	while ( i-- ){
 		printf( "Resuming in %d seconds..\r", i + 1 );
-		sleep( 1 );
+		//sleep( 1 );
 	}
 	printf( "\n" );
 
@@ -329,7 +335,7 @@ int sh_sleep( int argc, char **argv ){
 }
 
 int sh_debug( int argc, char **argv ){
-	printf( "%s:%d\n", g_errfile, g_errline );
+	//printf( "%s:%d\n", g_errfile, g_errline );
 	return 0;
 }
 
@@ -341,40 +347,41 @@ int sh_alloc( int argc, char **argv ){
 
 	for ( i = 0; i < count; i++ ){
 		unsigned long phys;
-		string = (char *)kmalloc(strlen( data ), 0, &phys );
+		string = (char *)malloc( strlen( data ));
 		memcpy( string, data, strlen( data ) + 1);
 		printf( "0x%x:0x%x:%s", string, phys, string );
-		kfree( string );
-		printf( " (freed)\n" ); 
+		//free( string );
+		//printf( " (freed)\n" ); 
+		printf( "\n" );
 	}
 	return 0;
 }
 
 int sh_reboot( int argc, char **argv ){
-	reboot();
+	//reboot();
 	return 0;
 }
 
 int sh_mem( int argc, char **argv ){
-	printf( "Used: %d (0x%x) bytes (%dkb)\n", get_memused(), get_memused(), get_memused() / 1024 );
+	//printf( "Used: %d (0x%x) bytes (%dkb)\n", get_memused(), get_memused(), get_memused() / 1024 );
 	return 0;
 }
 
 int sh_ps( int argc, char **argv ){
 	printf( "Calling pid: %d\n", getpid());
-	dump_pids();
+	//dump_pids();
 	return 0;
 }
 int   sh_msg( int argc, char **argv ){
 	if ( argc < 2 ) return 1;
-	ipc_msg_t *buf = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0);
+	ipc_msg_t *buf = (void *)malloc( sizeof( ipc_msg_t ));
 	buf->msg_type = MSG_STATUS;
 	buf->sender = getpid();
 
 	if ( argc > 2 ) 
 		buf->msg_type = atoi( argv[2] );
 
-	char res = send_msg( atoi(argv[1]), buf );
+	char res = syscall_send_msg( atoi(argv[1]), buf );
 	if ( res ){
 		printf( "Could not send message: %s\n", (res==1)?"pid doesn't exist":"pid is not listening" );
 	} else {
@@ -384,10 +391,9 @@ int   sh_msg( int argc, char **argv ){
 }
 
 int sh_getmsg( int argc, char **argv ){
-	ipc_msg_t *msg = (void *)kmalloc( sizeof( ipc_msg_t ), 0, 0 );
-	if ( get_msg( MSG_NO_BLOCK, msg ) == 0 ){
-		printf( "Got message 0x%x (%s) from pid %d\n", msg->msg_type, 
-				msg_lookup( msg->msg_type ), msg->sender );
+	ipc_msg_t *msg = (void *)malloc( sizeof( ipc_msg_t ));
+	if ( syscall_get_msg( MSG_NO_BLOCK, msg ) == 0 ){
+		printf( "Got message 0x%x from pid %d\n", msg->msg_type, msg->sender );
 	} else {
 		printf( "No messages in queue.\n" );
 	}
@@ -397,7 +403,7 @@ int sh_getmsg( int argc, char **argv ){
 int  sh_kill( int argc, char **argv ){
 	if ( argc < 2 ) return 1;
 
-	char ret = kill_thread( atoi( argv[1] ));
+	char ret = kill( atoi( argv[1] ), SIGINT );
 	if ( ret )
 		printf( "Could not kill pid\n" );
 
@@ -405,12 +411,14 @@ int  sh_kill( int argc, char **argv ){
 }
 
 int sh_uptime( int argc, char **argv ){
+	/*
 	unsigned long uptime 	= get_uptime();
 	unsigned long minutes 	= ( uptime / 60 );
 	unsigned long hours	= ( minutes / 60 );
 	unsigned long days	= ( hours / 24 );
 
 	printf( "Uptime: %u days, %uh:%um:%us\n", days, hours % 60, minutes % 60, uptime % 60 );
+	*/
 
 	return 0;
 }
@@ -425,7 +433,7 @@ int   sh_exec( int argc, char **argv ){
 	}
 
 	printf( "[shell] argv[0]: 0x%x\n", argv[0] );
-	ret = syscall_fexecve( fp, argv, 0 );
+	ret = syscall_fspawn( fp, argv, 0 );
 	if ( ret < 0 ){
 		printf( "Could not execute file\n" );
 	}
@@ -435,7 +443,7 @@ int   sh_exec( int argc, char **argv ){
 int sh_cat( int argc, char **argv ){
 	if ( argc < 2 ) return 1;
 
-	int fp = open( argv[1], O_RDONLY );
+	int fp = open( argv[1], 0 );
 	int ret, i;
 	char buf[512];
 
@@ -444,13 +452,17 @@ int sh_cat( int argc, char **argv ){
 		return 1;
 	}
 
-	while (( ret = read( fp, &buf, 512 )) > 0 ){
-		//ret = read( fp, &buf, 512 );
+	while ( 1 ){
+		/* 512 bytes, in the event you want to read a block device.
+ 		 * Reading a block device 1 byte at a time, of course, is incredibly inefficient */
+		ret = read( fp, &buf, 512 );
+		if ( ret < 1 )
+			break;
+
 		for ( i = 0; i < ret; i++ )
 			printf( "%c", buf[i] );
 	}
 
-	printf( "Got fp %d\n", fp );
 	close( fp );
 
 	return 0;
@@ -494,10 +506,4 @@ int sh_chroot( int argc, char **argv ){
 }
 
 
-#else
-
-void init_shell( ){ return; }
-void kshell( void ){ printf( "<built-in shell disabled>\n" );}
-
-#endif
 #endif

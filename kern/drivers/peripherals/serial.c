@@ -13,6 +13,14 @@ int transmit_empty( void ){
 	return inb( PORT + 5 ) & 0x20;
 }
 
+static int open_serial( file_node_t *node, char *path, int flags ){
+	return 1;
+}
+
+static int close_serial( file_node_t *node ){
+	return 0;
+}
+
 static int read_serial( file_node_t *node, void *buf, size_t size ){
 	char *out_buf = buf;
 	unsigned int i;
@@ -52,8 +60,8 @@ static int pwrite_serial( file_node_t *node, void *buf, size_t size, unsigned lo
 void unload_serial( void ){
 }
 
-void init_serial( void ){
-	file_node_t serial_driver;
+file_node_t *serial_create( ){
+	file_node_t *serial_driver = (file_node_t *)kmalloc( sizeof( file_node_t ), 0, 0 );
 
 	outb( PORT + 1, 0x00 ); // disable interrupts
 	outb( PORT + 3, 0x80 ); // enable dlab (set baud rate divisor)
@@ -63,17 +71,19 @@ void init_serial( void ){
 	outb( PORT + 2, 0xc7 ); // enable fifo, clear them, with 14-byte threshold
 	outb( PORT + 4, 0x0b ); // irqs enabled, rts/dsr set
 
-	memset( &serial_driver, 0, sizeof( file_node_t ));
-	memcpy( serial_driver.name, "ser0", 5 );
+	memset( serial_driver, 0, sizeof( file_node_t ));
+	memcpy( serial_driver->name, "ser0", 5 );
 
-	serial_driver.type	= FS_CHAR_D;
-	serial_driver.read	= read_serial;
-	serial_driver.pread	= pread_serial;
-	serial_driver.write	= write_serial;
-	serial_driver.pwrite	= pwrite_serial;
+	serial_driver->type	= FS_CHAR_D;
+	serial_driver->read	= read_serial;
+	serial_driver->pread	= pread_serial;
+	serial_driver->write	= write_serial;
+	serial_driver->pwrite	= pwrite_serial;
+	serial_driver->open	= open_serial;
+	serial_driver->close	= close_serial;
 
-	devfs_register_device( serial_driver );
-
+	//devfs_register_device( serial_driver );
+	return serial_driver;
 }
 
 #endif

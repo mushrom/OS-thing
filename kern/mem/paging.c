@@ -41,8 +41,9 @@ void flush_tlb( void ){
 void page_fault_handler( registers_t *regs ){
 	unsigned long fault_addr;
 	asm volatile( "mov %%cr2, %0": "=r"(fault_addr));
+	memmap_t *map;
 
-	if ( fault_addr > current_task->start_addr && fault_addr < current_task->end_addr && get_page( fault_addr, current_dir ) == 0 ){
+	if (( map = memmaps_check( current_task->maps, fault_addr )) && get_page( fault_addr, current_dir ) == 0 ){
 		printf( "Address 0x%x is in task's address space, mapping...\n", fault_addr );
 		map_page( fault_addr, PAGE_USER | PAGE_WRITEABLE | PAGE_PRESENT, current_dir );
 		flush_tlb();
@@ -225,6 +226,7 @@ void free_page( unsigned long address, page_dir_t *dir ){
 		return;
 
 	dir->tables[ low_index ]->address[ high_index % 1024 ] = 0;
+	push_page( address & 0xfffff000 );
 }
 
 /** \brief Map a range of addresses
@@ -268,35 +270,15 @@ void free_pages( unsigned long start, unsigned long end, page_dir_t *dir ){
  */
 void init_paging( multiboot_header_t *mboot_h ){
 	unsigned long address	= 0, i;
-	/*
-	page_dir_t   *kernel_dir	  = (void *)kmalloc_e( sizeof( page_dir_t ), 1, &address );
-		      kernel_dir->address = (void *)address;
-	*/
+	unsigned long max_mem = ( mboot_h->mem_lower + mboot_h->mem_upper ) & 0xfffff000; // maximum memory in kb
+
 	kernel_dir		= (void *)kmalloc_e( sizeof( page_dir_t ), 1, &address );
 	kernel_dir->address 	= (void *)address;
 
-	//npages		= ( mboot_h->mem_lower + mboot_h->mem_upper ) / PAGE_SIZE;//mem_end / PAGE_SIZE;
-	npages			= mem_end / PAGE_SIZE;
-	//printf( "Got here...\n" );
-	page_stack 	 	= (void *)kmalloc_e( npages * 4 + 1, 1, 0 );
+	npages			= max_mem / 4;
+	page_stack 	 	= (void *)kmalloc_e( npages * sizeof( int ) + 1, 1, 0 );
 
-	if ( mboot_h->flags & MULTIBOOT_FLAG_MMAP ){
-		/*
-		multiboot_mem_map_t *mmap;
-
-		printf( "mmap_addr: 0x%x, length: 0x%x\n", mboot_h->mmap_addr, mboot_h->mmap_length );
-
-		mmap = (multiboot_mem_map_t *)mboot_h->mmap_addr;
-		for ( ; mmap < mboot_h->mmap_addr + mboot_h->mmap_length; mmap += mmap->size + sizeof( mmap->size )){
-			printf( "size: 0x%x, base: 0x%x%x, length: 0x%x%x, type: 0x%x\n", 
-				mmap->size, mmap->addr_high, mmap->addr_low, 
-				mmap->len_high, mmap->len_low, mmap->type );
-		}
-		*/
-	} else {
-		PANIC( "Have no mmap" );
-	}
-	for ( i = mem_end; i + PAGE_SIZE > 0; i -= PAGE_SIZE )
+	for ( i = max_mem * 1024; i + PAGE_SIZE > 0; i -= PAGE_SIZE )
 		push_page( i );
 
 	for ( i = 1; i < 1024; i++ )
@@ -320,9 +302,9 @@ void init_paging( multiboot_header_t *mboot_h ){
 	printf( "%s", (char *)0xe0000000 );
 	*/
 	kheap = (void *)init_heap( KHEAP_START, KHEAP_SIZE );
-	/*
-	printf( "    %d total pages, %d allocated for kernel (%d free, last at 0x%x)\n", 
+	printf( "%d total pages, %d allocated for kernel (%d free, last at 0x%x)\n", 
 			npages, npages - page_ptr, page_ptr, address );
+	/*
 	printf( "    placement: 0x%x\n", placement );
 	printf( "    kheap size: 0x%x\n", KHEAP_SIZE );
 	printf( "    meh: 0x%x\n", sizeof( page_table_t ) * npages );

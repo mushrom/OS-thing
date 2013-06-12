@@ -33,39 +33,19 @@ int load_elf( int fd, char **argv, char **envp ){
 
 	if ( elf_header.e_ident[EI_CLASS] != ELFCLASS32 )
 		return -1;
-		//printf( "[debug] Is 32-bit executable\n" );
-	//else return -1;
-	
 
 	if ( elf_header.e_ident[EI_DATA]  != ELFDATA2LSB )
 		return -1;
-		//printf( "[debug] Is little-endian\n" );
-	//else return -1;
-	
-	//printf( "[debug] entry: 0x%x\tsections: 0x%x\n", elf_header.e_entry, elf_header.e_shnum );
-	//printf( "[debuf] program header offset: 0x%x, %d pheads, size: %d\n", 
-	//		elf_header.e_phoff, elf_header.e_phnum, elf_header.e_phentsize );
-	//page_dir_t *new_dir = clone_page_dir( current_task->dir );
 	
 	asm volatile( "cli" );
 	extern page_dir_t *kernel_dir;
 	page_dir_t *old_dir = current_task->dir;
-	//set_page_dir( kernel_dir );
 	page_dir_t *new_dir = clone_page_dir( kernel_dir );
-	//page_dir_t *new_dir = clone_page_dir( current_task->dir );
 	set_page_dir( new_dir );
-	//printf( "kernel: 0x%x, current: 0x%x, new: 0x%x\n", kernel_dir->address, current_task->dir->address, new_dir->address );
-	//set_page_dir( old_dir );
-
-	//return 0;
 
 	for ( i = 0; i < elf_header.e_phnum; i++ ){
 		lseek( fd, elf_header.e_phoff + ( i * elf_header.e_phentsize ), 0 );
 		read( fd, &phbuf, elf_header.e_phentsize );
-	/*
-	printf( "[debug] Phead type: 0x%x, vaddr: 0x%x, offset: 0x%x, rsize: 0x%x, vsize: 0x%x\n", 
-		phbuf.p_type, phbuf.p_vaddr, phbuf.p_offset, phbuf.p_filesz, phbuf.p_memsz );
-	*/
 
 		buf = (char *)kmalloc( phbuf.p_filesz, 0, 0 );
 		lseek( fd, phbuf.p_offset, 0 );
@@ -81,8 +61,6 @@ int load_elf( int fd, char **argv, char **envp ){
 	set_page_dir( old_dir );
 	asm volatile( "sti" );
 	
-	//free_pages( 0x8000000, 0x8050000, current_task->dir );
-	//flush_tlb();
 	return 0;
 	return ret;
 }

@@ -80,6 +80,14 @@ void set_color( unsigned char new_color ){
 	color = new_color;
 }
 
+static int console_open( file_node_t *node, void *buf, unsigned long size ){
+	return 1;
+}
+
+static int console_close( file_node_t *node ){
+	return 0;
+}
+
 /* Driver interface */
 static int console_write( file_node_t *node, void *buf, unsigned long size ){
 	char *in_buf = buf;
@@ -95,17 +103,19 @@ static int console_pwrite( file_node_t *node, void *buf, unsigned long size, uns
 	return console_write( node, buf, size );
 }
 
-void init_console(){
-	file_node_t console_driver;
+file_node_t *console_create( ){
+	file_node_t *console_driver = (file_node_t *)kmalloc( sizeof( file_node_t ), 0, 0 );
 
-	memset( &console_driver, 0, sizeof( file_node_t ));
-	memcpy( console_driver.name, "tty", 4 );
-	console_driver.type	= FS_CHAR_D;
-	console_driver.write	= console_write;
-	console_driver.pwrite	= console_pwrite;
-	console_driver.mask	= 0777;
+	memset( console_driver, 0, sizeof( file_node_t ));
+	memcpy( console_driver->name, "tty", 4 );
+	console_driver->type	= FS_CHAR_D;
+	console_driver->write	= console_write;
+	console_driver->pwrite	= console_pwrite;
+	console_driver->open	= console_open;
+	console_driver->close	= console_close;
+	console_driver->mask	= 0777;
 
-	devfs_register_device( console_driver );
+	return console_driver;
 }
 
 #endif

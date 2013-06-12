@@ -22,11 +22,14 @@ typedef struct ide_device {
 	unsigned char  model[41];
 } ide_device_t;
 	
-ide_channel_regs_t 	channels[2]; ide_device_t		ide_devices[4];
+ide_channel_regs_t 	channels[2]; 
+ide_device_t		ide_devices[4];
+
 unsigned char ide_buf[2048] = {0};
 unsigned char ide_irq_invoked = 0;
 unsigned char atapi_packet[12] = { 0xa8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 unsigned char package[3] = {0};
+int ide_started = 0;
 int ide_driver_read( file_node_t *node, void *buf, unsigned long size );
 int ide_driver_write( file_node_t *node, void *buf, unsigned long size );
 int ide_driver_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset );
@@ -34,6 +37,11 @@ int ide_driver_pwrite( file_node_t *node, void *buf, unsigned long size, unsigne
 
 void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned int bar3, unsigned int bar4 ){
 	int i, j, k, count = 0;
+
+	if ( ide_started )
+		return;
+
+	ide_started = 1;
 
 	channels[ATA_PRIMARY   ].base	= (bar0 & 0xfffffffc) + 0x1f0 * (!bar0);
 	channels[ATA_PRIMARY   ].ctrl	= (bar1 & 0xfffffffc) + 0x3f4 * (!bar1);
@@ -108,6 +116,7 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 	register_interrupt_handler( IRQ11, ide_irq_handler );
 	register_interrupt_handler( IRQ9,  ide_irq_handler );
 
+	/*
 	file_node_t ide_file;
 	char *dev_name = "ide0";
 	for ( i = 0; i < 4; i++ ){
@@ -132,6 +141,7 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 			dev_name[3]++;
 		}
 	}
+	*/
 
 /*
 	char *part_table = (char *)kmalloc( 512, 0, 0 );
@@ -149,6 +159,58 @@ void init_ide( unsigned int bar0, unsigned int bar1, unsigned int bar2, unsigned
 		}
 	}
 */
+}
+
+int ide_driver_open( file_node_t *node, char *path, int flags ){
+	return 1;
+}
+
+int ide_driver_close( file_node_t *node ){
+	return 0;
+}
+
+file_node_t *ide_create( int drive ){
+	int i = drive;
+	if ( i < 0 || i > 3 )
+		return 0;
+
+	if ( !ide_started ){
+		init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
+	}
+
+	char dev_name[] = "ide0";
+	file_node_t *ide_file;
+	dev_name[3] += i;
+
+	if ( ide_devices[i].reserved ){
+		ide_file = (file_node_t *)kmalloc( sizeof( file_node_t ), 0, 0 );
+		/*
+		printf( "    %s: %s drive, %dkb (%d): %s\n", 
+			dev_name,
+			(char *[]){"ATA", "ATAPI"}[ide_devices[i].type],
+			(ide_devices[i].size + 1)/ 2,
+			ide_devices[i].size, 
+			ide_devices[i].model
+		);
+		*/
+
+		memset( ide_file, 0, sizeof( file_node_t ));
+		memcpy( ide_file->name, dev_name, 5 );
+		ide_file->type	= FS_BLOCK_D;
+		ide_file->read	= ide_driver_read;
+		ide_file->open	= ide_driver_open;
+		ide_file->close	= ide_driver_close;
+		ide_file->write	= ide_driver_write;
+		ide_file->pread	= ide_driver_pread;
+		ide_file->pwrite	= ide_driver_pwrite;
+		ide_file->dev_id	= i;
+		ide_file->size		= (ide_devices[i].size + 1)/2 * 1024;
+		ide_file->mask		= 0777;
+
+		return ide_file;
+	} else {
+		return 0;
+	}
 }
 
 int ide_driver_read( file_node_t *node, void *buf, unsigned long size ){

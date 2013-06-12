@@ -10,6 +10,6 @@
 #define KB_UA 0xf2
 #define KB_DA 0xf3
 
-void init_keyboard( void );
+file_node_t *keyboard_create( );
 
 #endif

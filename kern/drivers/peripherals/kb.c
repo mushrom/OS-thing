@@ -62,6 +62,15 @@ static void keyboard_handler( registers_t *regs ){
 	}
 }
 
+static int open_kb( file_node_t *node, char *path, int flags ){
+	printf( "[kb] got here\n" );
+	return 1;
+}
+
+static int close_kb( file_node_t *node ){
+	return 0;
+}
+
 static int read_kb( file_node_t *node, void *buf, size_t size ){
 	unsigned int i;
 	char *out_buf = buf;
@@ -83,21 +92,24 @@ void unload_keyboard( void ){
 	unregister_interrupt_handler( IRQ1 );
 }
 
-void init_keyboard( void ){
-	file_node_t kb_driver;
-	memset( &kb_driver, 0, sizeof( file_node_t ));
-	memcpy( kb_driver.name, "kb0", 4 );
-	kb_driver.type	= FS_CHAR_D;
-	kb_driver.read	= read_kb;
-	kb_driver.pread	= pread_kb;
-	kb_driver.mask = 0777;
+file_node_t *keyboard_create( ){
+	file_node_t *kb_driver = (file_node_t *)kmalloc( sizeof( file_node_t ), 0, 0 );
+	memset( kb_driver, 0, sizeof( file_node_t ));
+	memcpy( kb_driver->name, "kb0", 4 );
+	kb_driver->type	 = FS_CHAR_D;
+	kb_driver->read	 = read_kb;
+	kb_driver->pread = pread_kb;
+	kb_driver->open  = open_kb;
+	kb_driver->close = close_kb;
+	kb_driver->mask  = 0777;
 
-	devfs_register_device( kb_driver );
 	register_interrupt_handler( IRQ1, &keyboard_handler );
 	/** Kludge alert; for some reason the keyboard will occassionally
  	 * (read: frequently) not interrupt if the handler isn't called immediately.
  	 * I have no idea why, but if it works... */
 	keyboard_handler( 0 );
+
+	return kb_driver;
 }
 
 #endif

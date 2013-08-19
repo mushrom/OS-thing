@@ -41,7 +41,7 @@ void jmp_to_signal( unsigned long sig, ksignal_h handle ){
 }
 
 int handle_signal( task_t *task, signal_t signal ){
-	printf( "[kernel] sent signal\n" );
+	printf( "[kernel] sent signal %d\n", signal );
 	if ( signal < 0 || signal >= MAX_SIGNALS )
 		return -1;
 

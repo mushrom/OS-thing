@@ -70,6 +70,7 @@ char *g_errfile = "unknown";
 #else
 char *g_errfile = "Debugging disabled";
 #endif
+
 /** \brief Main kernel code 
  * @param mboot multiboot structure provided by bootloader
  * @param initial_stack initial esp pointer, pushed by loader.s
@@ -81,6 +82,7 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	initial_esp = initial_stack;
 	cls();
 	set_color( COLOR_LGRAY );
+	file_node_t nodebuf, mountbuf, *fp;
 
 	con_scroll_offset = 2;
 	kputs( "[\x19obsidian\x17 OS]\n" );
@@ -119,33 +121,75 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	ksymbol_table = init_symbol_bin( 128 ); 
 	kexport_symbol( "printf", (unsigned long)printf );
 
-	file_node_t *temp = init_vfs();
-	printf( "Got here\n" );
-	fs_mkdir( temp, "dev", 0700 );
-	fs_mkdir( temp, "sbin", 0700 );
+	file_system_t *temp = init_ramfs();
+	register_fs( temp, 0 );
+
 	set_fs_root( temp ); 	
 
-	//init_devfs();		
-
+	printf( "Got here\n" );
+	printf( "[ ] Set virtual file system root\n" );
 
 	init_syscalls(); 	
 	init_tasking(); 
 
 	//init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
+	i = mkdir( "/dev", 0700 );
+	printf( "mkdir: 0x%x\n", i );
 	
 	if ( initrd ){
 		//initrd_create( initrd ); 	
 	}
 
-	temp = fs_find_path( "/dev", 1 );
+	i = fs_find_path( "/dev", 1, &nodebuf );
+	printf( "[ ] Device setup... 0x%x\n", i );
+	if ( i < 0 ){
+		printf( "error: %d: ", -i );
+		if ( i == -ENOENT )
+			printf( "couldn't find file" );
+		else if ( i == -ENOTDIR )
+			printf( "apparently it's not a directory" );
+		else
+			printf( "dunno cap'n" );
+
+		printf( "\n" );
+	}
+
+	//i = fs_find_path( "/dev/kb0", 1, &nodebuf );
+
+	//fs_mount( &nodebuf, fp, 0, 0 );
+	//kfree( fp );
+	
+	register_fs( keyboard_create( ), 0 );
+
+	printf( "[ ] Dumping filesystems...\n" );
+	extern llist_node_t *file_system_list;
+	llist_node_t *blarg;
+	for ( blarg = file_system_list; blarg->next; blarg = blarg->next ){
+		temp = blarg->data;
+		printf( "%d:\t\"%s\"\n", temp->id, temp->name );
+		if ( temp->id == 321 ){
+			printf( "Got here\n" );
+
+			mountbuf.fs = temp;
+			mountbuf.inode = temp->i_root;
+			mknod( "/dev/kb0", 0777, FS_CHAR_D );
+			printf( "Searching...\n" );
+			fs_find_path( "dev/kb0", 1, &nodebuf );
+
+			fs_mount( &nodebuf, &mountbuf, 0, 0 );
+			fs_find_path( "/dev/kb0", 1, &nodebuf );
+		}
+	}
+	
+	/*
 	fs_mknod( temp, "kb0", 0777, FS_CHAR_D );
-	fs_mknod( temp, "tty", 0777, FS_CHAR_D );
 	fs_mknod( temp, "null", 0777, FS_CHAR_D );
 	fs_mknod( temp, "ser0", 0777, FS_CHAR_D );
+	fs_mknod( temp, "tty", 0777, FS_CHAR_D );
 
 	temp = fs_find_path( "/dev/kb0", 1 );
 	fs_mount( keyboard_create( ), temp, 0, 0 );
-
+	
 	temp = fs_find_path( "/dev/tty", 1 );
 	fs_mount( console_create( ), temp, 0, 0 );
 
@@ -154,21 +198,13 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 
 	temp = fs_find_path( "/dev/ser0", 1 );
 	fs_mount( serial_create( ), temp, 0, 0 );
-
-	/*
 	*/
+
 	/*
 	fs_mount( temp, 
 	*/
+
 	/*
-	devfs_register_device( serial_create( ));
-	devfs_register_device( keyboard_create( ));
-	devfs_register_device( console_create( ));
-
-	devfs_register_device( null_create( ));
-	devfs_register_device( abc_create( ));
-	*/
-
 	char *long_idestr = "/dev/ide0";
 	char *idestr = long_idestr + 5;
 	file_node_t *buf;
@@ -182,6 +218,8 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 			fs_mount( buf, temp, 0, 0 );
 		}
 	}
+	*/
+
 	/*
 	init_serial();
 	init_keyboard(); 	
@@ -190,7 +228,7 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 	init_ide( 0x1F0, 0x3F4, 0x170, 0x374, 0x000 );
 	*/
 
-	ext2fs_dump_info( "/dev/ide1" );
+	//ext2fs_dump_info( "/dev/ide1" );
 
 	printf( "    Kernel init finished: %d ticks\n", get_tick());
 	for ( i = 0; i < 80; i++ ) kputs( "=" ); kputs( "\n" );
@@ -199,7 +237,8 @@ void kmain( struct multiboot_header *mboot, uint32_t initial_stack, unsigned int
 
 	create_thread( &kinit_prompt );
 
-	while ( 1 ) sleep_thread( 0xffffffff );
+	while( 1 ) asm ("hlt");
+	//while ( 1 ) sleep_thread( 0xffffffff );
 }
 
 /** \brief Initialises userland. */

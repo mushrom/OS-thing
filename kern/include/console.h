@@ -3,6 +3,7 @@
 #include <string.h>
 #include <fs.h>
 #include <devfs.h>
+#include <kmacros.h>
 
 #define XSIZE 80
 #define YSIZE 25
@@ -32,6 +33,6 @@ void cls( void );
 void kputchar( unsigned char );
 void kputs( char * );
 void set_color( unsigned char );
-struct file_node *console_create( );
+struct file_system *console_create( );
 
 #endif

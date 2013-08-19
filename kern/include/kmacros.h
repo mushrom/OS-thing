@@ -25,5 +25,7 @@ extern unsigned int g_errline;
 #define DEBUG_HERE /* Remove -DNO_DEBUG flag to enable debugging */
 #endif
 
+// Allocate a structure, and set it to zero
+#define knew( n ) (memset((void *)kmalloc( sizeof( n ), 0, 0), 0, sizeof( n )))
 
 #endif

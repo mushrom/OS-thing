@@ -97,7 +97,7 @@ void kshell( void ){
 		cmd_found = 0;
 		i = read( in_fd, &buf, 1 );
 		if ( i <= 0 ){
-			printf( "Input file was closed.\n" );
+			printf( "Input file was closed, error = %d.\n", i );
 			return;
 		}
 		j = 0;
@@ -191,6 +191,7 @@ int sh_clear( int argc, char **argv ){
 int  sh_list( int argc, char **argv ){
 	int items = 0, fp;
 	char *to_list = ".";
+
 	if ( argc > 1 )
 		to_list = argv[1];
 
@@ -199,22 +200,19 @@ int  sh_list( int argc, char **argv ){
 	if ( fp < 0 )
 		printf( "Could not open directory.\n" );
 
-	//struct dirp dir, *d;
-	struct dirent entry;
+	int len = sizeof( struct dirent );
+	struct dirent *entry = (void *)kmalloc( len, 0, 0 );
 
-	//d = fdopendir_c( fp, &dir );
-
-	if ( fp ){
-		while ( read( fp, &entry, sizeof( struct dirent )) > 0 ){
-			printf( "%s\t", entry.name );
-			if ( ++items % 8 == 0 )
-				printf( "\n" );
-		}
-		printf( "\n" );
-		close( fp );
-	} else {
-		printf( "Could not open directory\n" );
+	while ( readdir( fp, entry ) > 0 ){
+		printf( "%d:%s\t", entry->inode, entry->name );
+		if ( ++items % 8 == 0 )
+			printf( "\n" );
 	}
+
+	printf( "\n" );
+	close( fp );
+
+	kfree( entry );
 	return 0;
 }
 

@@ -1,5 +1,6 @@
 #ifndef _kernel_string_c
 #define _kernel_string_c
+#include <string.h>
 
 unsigned int strlen( char *input ){
 	int i;
@@ -21,8 +22,15 @@ int strcmp( char *s1, char *s2 ){
 	return ret;
 }
 
-/* Basic memory stuff */
+char *strdup( char *s ){
+	int slen = strlen( s );
+	char *ret = (void *)kmalloc( slen + 1, 0, 0 );
+	memcpy( ret, s, slen );
+	ret[slen] = 0;
+	return ret;
+}
 
+/* Basic memory stuff */
 void *memset( void *dest, unsigned char value, unsigned int count ){
 	char *ret_dest = dest;
 	while ( count-- ){

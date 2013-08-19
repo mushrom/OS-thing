@@ -3,6 +3,8 @@
 #include <fs.h>
 #include <stdint.h>
 #include <alloc.h>
+#include <string.h>
+#include <kmacros.h>
 
 // filesystem status in ext2_sprblk_t->fs_state
 enum {
@@ -179,58 +181,24 @@ typedef struct ext2_dirent {
 	char     name;
 } ext2_dirent_t;
 
+typedef struct ext2_device {
+	int fd;
+	int block_groups;
+	int block_size;
+	struct ext2_sprblk *sprblk;
+	struct ext2_ex_sprblk *esprblk;
+	struct ext2_block_desc *blkdesc;
+
+	/*
+	file_node_t *file_cache;
+	char *file_cache_map;
+	int file_cache_size;
+	*/
+
+} ext2_device_t;
+
 file_node_t *ext2fs_create( char *path );
 void ext2fs_mount( char *path, char *image );
 void ext2fs_dump_info( char *path );
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

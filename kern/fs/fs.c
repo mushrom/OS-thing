@@ -4,19 +4,28 @@
 
 file_node_t 	*fs_root;
 extern task_t *current_task;
+llist_node_t *file_system_list = 0;
+llist_node_t *mount_list = 0;
+unsigned int mount_ids = 1;
 
-void set_fs_root( file_node_t *new_root ){
-	fs_root = new_root;
+void set_fs_root( file_system_t *new_root ){
+	if ( !fs_root )
+		fs_root = knew( file_node_t );
+
+	fs_root->inode = new_root->i_root;
+	fs_root->fs = new_root;
 }
 
-file_node_t *fs_find_path( char *input_path, unsigned int links ){
+int fs_find_path( char *input_path, unsigned int links, file_node_t *buf ){
 	char *path, *p; 
-	file_node_t *fp, *ret;
+	int ret = 0;
+	file_node_t *fp;
 	if ( strlen( input_path ) == 0 )
 		input_path = ".";
 
 	p = path = (void *)kmalloc( strlen( input_path + 1 ), 0, 0 );
 	memcpy( path, input_path, strlen( input_path ) + 1 );
+	//printf( "[fs_find_path] path=\"%s\", ", path );
 
 	if ( path[0] == '/' ){
 		if ( current_task )
@@ -27,37 +36,39 @@ file_node_t *fs_find_path( char *input_path, unsigned int links ){
 		while ( path[0] == '/' )
 			path++;
 
-		if ( strlen( path ) == 0 )
-			return fp;
-	} else if ( path[0] == '.' ){
-		fp = current_task->cwd;
-		if ( strlen( path ) == 1 )
-			return fp;
-		path++;
-		while ( path[0] == '/' )
-			path++;
+		if ( strlen( path ) == 0 ){
+			buf->inode = fp->inode;
+			buf->fs	= fp->fs;
+			printf( "got here, " );
+			goto alldone;
+		}
 	} else {
 		if ( current_task ){
-		//	path = current_task->cwd->name;
 			fp = current_task->cwd;
 		} else {
-		//	path = fs_root->name;
 			fp = fs_root;
 		}
 	}
 
-	ret = fs_find_node( fp, path, links );
+	//ret = knew( file_node_t );
+	//printf( "[fs_find_path] Searching for \"%s\"\n", path );
+	ret = fs_find_node( fp, path, links, buf );
+
+alldone:
 	kfree( p );
+
+	printf( "[fs_find_path] buf->fs=0x%x, ret=0x%x\n", buf->fs, ret );
 	return ret;
 }
 
 int isgoodfd( task_t *task, int fd ){
-	if ( !task->file_count || fd >= task->file_count )
+	if ( !task->file_count || fd >= task->file_count ){
 		return 0;
+	}
 
-	if ( !task->files[fd] )
+	if ( !task->files[fd] ){
 		return 0;
-		//exit_thread();
+	}
 
 	return 1;
 }
@@ -66,12 +77,15 @@ int check_perms( task_t *task, file_node_t *node, int flags ){
 	int perms = 0000;
 	int good_op = 1;
 
-	if ( task->uid == node->uid ){
-		perms = node->mask >> P_USHIFT & 07;
-	} else if ( task->gid == node->gid ){
-		perms = node->mask >> P_GSHIFT & 07;
+	file_info_t *n_info = knew( file_info_t );
+	node->fs->ops->get_info( node, n_info );
+
+	if ( task->uid == n_info->uid ){
+		perms = n_info->mask >> P_USHIFT & 07;
+	} else if ( task->gid == n_info->gid ){
+		perms = n_info->mask >> P_GSHIFT & 07;
 	} else {
-		perms = node->mask >> P_ESHIFT & 07;
+		perms = n_info->mask >> P_ESHIFT & 07;
 	}
 
 	if ( !flags )
@@ -94,12 +108,14 @@ int check_perms( task_t *task, file_node_t *node, int flags ){
 	
 
 int open( char *path, int flags ){
-	file_node_t *fp = fs_find_path( path, 1 );
 	unsigned long i = 0;
 	char *p, *temp;
-	int ret = 0, found;
+	int found, err_val = 0;
+	file_node_t *fp = knew( file_node_t );
+
+	err_val = fs_find_path( path, flags, fp );
 	
-	if ( !fp ){
+	if ( err_val < 0 ){
 		found = 0;
 		if ( flags & O_CREAT ){
 			temp = path;
@@ -113,93 +129,98 @@ int open( char *path, int flags ){
 				}
 			}
 			//printf( "Researching for \"%s\"\n", temp );
-			fp = fs_find_path( temp, 1 );
+			err_val = fs_find_path( temp, flags, fp );
 			kfree( temp );
-			if ( !fp )
-				return -1;
+			if ( err_val < 0 )
+				goto finished;
+
 		} else {
-			
-			return -1;
+			err_val = -EPERM;
+			goto finished;
 		}
 	} else {
 		found = 1;
 	}
-
-	if ( current_task->file_count >= MAX_FILES )
-		return -1;
-	
-	for ( i = 0; i < MAX_FILES; i++ ){
-		if ( current_task->files[i] == 0 )
-			break;
-	}
-
-	if ( i == MAX_FILES )
-		return -1;
 
 	for ( temp = p = path; *p; p++ ){
 		if ( *p == '/' )
 			temp = p + 1;
 	}
 
-	if ( !check_perms( current_task, fp, flags ))
-		return -1;
+	if ( !check_perms( current_task, fp, flags )){
+		err_val = -EACCES;
+		goto finished;
+	}
 
 	//printf( "opening \"%s\"\n", temp );
-	ret = fs_open( fp, temp, flags );
+	err_val = fp->fs->ops->open( fp, temp, flags );
 
-	if ( ret < 0 )
-		return ret;
+	if ( err_val < 0 )
+		goto finished;
 
-	if ( !found )
-		fp = fs_find_path( path, 1 );
+	if ( !found ){
+		err_val = fs_find_path( path, 1, fp );
+		if ( err_val < 0 )
+			goto finished;
+	}
 
-	if ( !fp )
-		return -1;
+	if ( current_task->file_count >= MAX_FILES ){
+		err_val = -EMFILE;
+		goto finished;
+	}
 	
-	current_task->files[i] = (void *)kmalloc( sizeof( file_descript_t ), 0, 0 );
+	for ( i = 0; i < MAX_FILES; i++ ){
+		if ( current_task->files[i] == 0 )
+			break;
+	}
+
+	if ( i == MAX_FILES ){
+		err_val = -EMFILE;
+		goto finished;
+	}
+
+	current_task->files[i] = knew( file_descript_t );
 	current_task->files[i]->file = fp;
 	current_task->files[i]->r_offset = 0;
 	current_task->files[i]->w_offset = 0;
 	current_task->files[i]->d_offset = 0;
 	current_task->file_count++;	
+	err_val = i;
+
+finished:
+	kfree( fp );
+	return err_val;
 	
-	return i;
 }
-
-/* TODO:
- * 	get rid of these
- */
-/*
-struct dirp *vfs_opendir( file_node_t *node ){ DEBUG_HERE
-	node->dirp->dir_ptr = 0;
-	return node->dirp;
-}
-
-int vfs_closedir( file_node_t *node ){ DEBUG_HERE
-	return 0;
-}
-*/
 
 int close( int fd ){
 	if ( !isgoodfd( current_task, fd ))
-		return -1;
+		return -ENOENT;
 
 	kfree( current_task->files[fd] );
 
 	int ret;
+	file_node_t *fp = current_task->files[fd]->file;
 
-	ret = fs_close( current_task->files[fd]->file );
+	ret = fp->fs->ops->close( fp );
 	current_task->files[fd] = 0;
 	current_task->file_count--;
+
 	return ret;
 }
 
 int read( int fd, void *buf, unsigned long size ){
-	if ( !isgoodfd( current_task, fd ))
+	if ( !isgoodfd( current_task, fd )){
+		printf( "[read] got here\n" );
 		return -1;
+	}
 	
-	unsigned long i = 0, offset = current_task->files[fd]->r_offset;
-	i = fs_pread( current_task->files[fd]->file, buf, size, offset );
+	unsigned long 	i = 0, 
+			offset = current_task->files[fd]->r_offset;
+
+	file_node_t *fp = current_task->files[fd]->file;
+
+	i = fp->fs->ops->pread( fp, buf, size, offset );
 	current_task->files[fd]->r_offset += i;
 
 	return i;
@@ -209,72 +230,69 @@ int write( int fd, void *buf, unsigned long size ){
 	if ( !isgoodfd( current_task, fd ))
 		return -1;
 
-	unsigned long i = 0, offset = current_task->files[fd]->w_offset;
-	i = fs_pwrite( current_task->files[fd]->file, buf, size, offset );
+	unsigned long 	i = 0, 
+			offset = current_task->files[fd]->w_offset;
+
+	file_node_t *fp = current_task->files[fd]->file;
+	i = fp->fs->ops->pwrite( fp, buf, size, offset );
+
 	if ( i > 0 )
 		current_task->files[fd]->w_offset += i;
 
 	return i;
 }
 
-/*
-struct dirp *fdopendir_c( int fd, struct dirp *buf ){
-	if ( !isgoodfd( current_task, fd ))
-		return -1;
-
-	if ( !current_task->files[fd]->file->dirp )
-		return 0;
-
-	current_task->files[fd]->d_offset = 0;
-	
-	memcpy( buf, current_task->files[fd]->file->dirp, sizeof( struct dirp ));
-	return buf;
-}
-
-struct dirent *readdir_c( int fd, struct dirp *dir, struct dirent *buf ){
-	if ( !isgoodfd( current_task, fd ))
-		return -1;
-
-	if ( !dir || current_task->files[fd]->d_offset >= dir->dir_count )
-		return 0;
-
-	memcpy( buf, dir->dir[ current_task->files[fd]->d_offset++ ], sizeof( struct dirent ));
-	return buf;
-}
-*/
-
 int chdir( char *path ){
-	file_node_t *fp = fs_find_path( path, 1 );
-	if ( !fp )
-		return -1;
+	file_node_t fp;
+	int ret = fs_find_path( path, 1, &fp );
 
-	current_task->cwd = fp;
+	if ( ret < 0 )
+		return ret;
+
+	current_task->cwd->inode = fp.inode;
+	current_task->cwd->fs = fp.fs;
 
 	return 0;
 }
 
 int chroot( char *path ){
-	file_node_t *fp = fs_find_path( path, 1 );
-	if ( !fp )
-		return -1;
+	file_node_t fp;
+	int ret = fs_find_path( path, 1, &fp );
 
-	current_task->root = fp;
+	if ( ret < 0 )
+		return ret;
+
+	current_task->root->inode = fp.inode;
+	current_task->root->fs = fp.fs;
 
 	return 0;
 }
 
 int lstat( char *path, struct vfs_stat *buf ){
-	file_node_t *fp = fs_find_path( path, 1 );
-	if ( !fp )
-		return -1;
+	file_node_t fp;
+	int ret = fs_find_path( path, 1, &fp );
 
-	return fs_stat( fp, buf );
+	if ( ret < 0 )
+		return ret;
+
+	file_info_t *n_info = knew( file_info_t );
+	fp.fs->ops->get_info( &fp, n_info );
+	
+	buf->type = n_info->type;
+	buf->uid = n_info->uid;
+	buf->gid = n_info->gid;
+	buf->time = n_info->time;
+	buf->size = n_info->size;
+	buf->mask = n_info->mask;
+
+	kfree( n_info );
+	return 0;
 }
 
 int lseek( int fd, long offset, int whence ){
 	int size;
 	if ( !isgoodfd( current_task, fd ))
-		return -1;
+		return -ENOENT;
 
 	switch ( whence ){
 		case 0:
@@ -290,28 +308,35 @@ int lseek( int fd, long offset, int whence ){
 			current_task->files[fd]->w_offset += offset;
 			break;
 		case 2:
-			size = current_task->files[fd]->file->size;
+			// TODO: put in proper size
+			size = 0;
+			//size = current_task->files[fd]->file->size;
 			if ( size + offset < 0 )
 				return -1;
 			current_task->files[fd]->r_offset = size + offset;
 			current_task->files[fd]->w_offset = size + offset;
 			break;
 		default:
-			return -1;
+			return -EINVAL;
 	}
 
 	return current_task->files[fd]->r_offset;
 }
 
 int mkdir( char *path, int mode ){
-	file_node_t *dir = fs_find_path( path, 1 );
+	file_node_t dir;
 	char *file = 0;
 	int i;
 
-	if ( dir ) /* If the path exists, return */
-		return -1;
+	int ret = fs_find_path( path, 1, &dir );
+	printf( "Bloop\n" );
 
-	for ( i = strlen( path ); i > 0; i-- ){ /* Find first directory above the directory to make */
+	/* If the path exists, return */
+	if ( ret == 0 )
+		return -EEXIST;
+
+	/* Find first directory above the directory to make */
+	for ( i = strlen( path ); i > 0; i-- ){
 		if ( path[i] == '/' ){
 			path[i] = 0;
 			file = path + i + 1;
@@ -319,164 +344,374 @@ int mkdir( char *path, int mode ){
 		}
 	}
 	
-	if ( i ){ /* Found a directory in the path, try and find the node */
-		dir = fs_find_path( path, 1 );
-	} else { /* No directory/was root, search current directory or root */
+	/* Found a directory in the path, try and find the node */
+	if ( i ){
+		ret = fs_find_path( path, 1, &dir );
+
+	/* No directory/was root, search current directory or root */
+	} else { 
 		file = path;
 		if ( file[0] == '/' ){
 			file++;
-			dir = fs_find_path( "/", 1 );
+			ret = fs_find_path( "/", 1, &dir );
 		} else {
-			dir = fs_find_path( ".", 1 );
+			ret = fs_find_path( ".", 1, &dir );
+		}
+	}
+
+	printf( "[mkdir 1] ret = 0x%x\n", ret );
+	
+	if ( ret < 0 )
+		return ret;
+
+	printf( "[mkdir 2] ret = 0x%x\n", ret );
+	ret = dir.fs->ops->mkdir( &dir, file, mode );
+	return ret;
+}
+
+int mknod( char *path, int mode, int dev ){
+	file_node_t fp;
+	char *file = 0;
+	int i;
+
+	int ret = fs_find_path( path, 1, &fp );
+
+	/* If the path exists, return */
+	if ( ret == 0 ){
+		printf( "[mknod] Node exists\n" );
+		return -EEXIST;
+	}
+
+	/* Find first directory above the directory to make */
+	for ( i = strlen( path ); i > 0; i-- ){
+		if ( path[i] == '/' ){
+			path[i] = 0;
+			file = path + i + 1;
+			break;
 		}
 	}
 	
-	if ( !dir )
-		return -1;
+	/* Found a directory in the path, try and find the node */
+	if ( i ){
+		ret = fs_find_path( path, 1, &fp );
 
-	return fs_mkdir( dir, file, mode );
+	/* No directory/was root, search current directory or root */
+	} else { 
+		file = path;
+		if ( file[0] == '/' ){
+			file++;
+			ret = fs_find_path( "/", 1, &fp );
+		} else {
+			ret = fs_find_path( ".", 1, &fp );
+		}
+	}
+
+	printf( "[mknod 1] ret = 0x%x\n", ret );
+	
+	/*
+	if ( ret < 0 )
+		return ret;
+	*/
+
+	printf( "[mknod 2] ret = 0x%x\n", ret );
+	ret = fp.fs->ops->mknod( &fp, file, mode, dev );
+	return ret;
+}
+
+int unlink( char *path ){
+	file_node_t fp;
+	int ret = fs_find_path( path, 0, &fp );
+
+	if ( ret < 0 )
+		return ret;
+
+	ret = fp.fs->ops->unlink( &fp );
+	//return fs_unlink( fp );
+	//return fs_call( FOP_UNLINK, fp );
+	return ret;
+}
+
+/*
+int getdents( int fd, struct dirent *dirp, unsigned int count ){
+	int ret = 0, i, offset;
+	file_node_t *fp;
+
+	if ( !isgoodfd( current_task, fd )){
+		ret = -ENOENT;
+		goto alldone;
+	}
+
+	fp = current_task->files[fd]->file;
+	offset = current_task->files[fd]->r_offset;
+
+	i = fp->fs->ops->getdents( fp, dirp, count, offset );
+	if ( i > -1 ){
+		current_task->files[fd]->r_offset += i;
+	} else {
+		ret = i;
+		goto alldone;
+	}
+
+	ret = i;
+	
+alldone:
+	return ret;
+
+}
+*/
+int readdir( int fd, struct dirent *dirp ){
+	int ret = 0, i, offset;
+	file_node_t *fp;
+	file_descript_t *fdesc;
+
+	if ( !isgoodfd( current_task, fd )){
+		ret = -ENOENT;
+		goto alldone;
+	}
+
+	fdesc = current_task->files[fd];
+	fp = fdesc->file;
+	offset = fdesc->d_offset++;
+
+	ret = fp->fs->ops->readdir( fp, dirp, offset );
+
+alldone:
+	return ret;
 }
 
 int mount( char *type, char *dir, int flags, void *data ){
-	file_node_t *type_fp, *dir_fp;
+	file_node_t type_fp, dir_fp;
+	int ret = 0, id;
 
-	type_fp = fs_find_path( type, 1 );
-	dir_fp  = fs_find_path( dir, 1 );
+	if (( ret = fs_find_path( type, 1, &type_fp )) < 0 )
+		goto alldone;
 
-	if ( !dir_fp )
-		return -1;
+	if (( ret = fs_find_path( dir, 1, &dir_fp )) < 0 )
+		goto alldone;
 
-	if ( !type_fp ){
-		type_fp = fs_find_node( fs_root, type, 1 );
-		if ( !type_fp )
-			return -1;
-	}
+	ret = fs_mount( &type_fp, &dir_fp, flags, data );
 
-	return fs_mount( type_fp, dir_fp, flags, data );
+alldone:
+	return ret;
+
 }
 
 int unmount( char *dir, int flags ){
+	return -1;
+	/*
 	file_node_t *dir_fp;
 
 	dir_fp  = fs_find_path( dir, 0 );
 	if ( !dir_fp )
 		return -1;
 
-	return fs_unmount( dir_fp, flags );
-}
-
-int fs_mount( file_node_t *type, file_node_t *dir, int flags, void *data ){
-	dir->mount = type;
-
-	return 0;
-}
-
-int fs_unmount( file_node_t *dir, int flags ){
-	dir->mount = 0;
-
-	return 0;
-}
-	
-/* A ton of wrapper functions... All they do is check if a function pointer is set,
- * return an error if not, otherwise return the result of the function. 			 */
-int  fs_write( file_node_t *node, void *buf, unsigned long size ){ DEBUG_HERE
-	if ( node->write )
-		return node->write( node, buf, size );
-	else
-		return -1;
-}
-
-int  fs_read ( file_node_t *node, void *buf, unsigned long size ){ DEBUG_HERE
-	if ( node->read )
-		return node->read( node, buf, size );
-	else 
-		return -1;
-}
-
-int fs_pwrite( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){ DEBUG_HERE
-	if ( node->pwrite )
-		return node->pwrite( node, buf, size, offset );
-	else
-		return -1;
-}
-
-int  fs_pread( file_node_t *node, void *buf, unsigned long size, unsigned long offset ){ DEBUG_HERE
-	if ( node->pread )
-		return node->pread( node, buf, size, offset );
-	else 
-		return -1;
-}
-
-int   fs_open( file_node_t *node, char *name, int i ){ DEBUG_HERE
-	if ( node->open )
-		return node->open( node, name, i );
-	else
-		return -1;
-}
-
-int  fs_close( file_node_t *node ){ DEBUG_HERE
-	if ( node->close )
-		return node->close( node );
-	else 
-		return -1;
+	//return fs_unmount( dir_fp, flags );
+	return fs_call( FOP_UNMOUNT, dir_fp, flags );
+	*/
 }
 
 /*
-struct dirp *fs_opendir( file_node_t *node ){ DEBUG_HERE
-	if ( node->opendir )
-		return node->opendir( node );
-	else
-		return 0;
-}
+int fs_call( file_op_t op, file_node_t *node, ... ){
+	va_list args;
+	va_start( args, node );
 
-struct dirent *fs_readdir( struct dirp *dir ){ DEBUG_HERE
-	if ( !dir || dir->dir_ptr >= dir->dir_count ){ DEBUG_HERE
-		return 0;
-	} else { DEBUG_HERE
-		return dir->dir[ dir->dir_ptr++ ];
-	}
-}
+	int ret;
 
-int fs_closedir( file_node_t *node ){ DEBUG_HERE
-	if ( node->closedir )
-		return node->closedir( node );
-	else 
-		return -1;
+	ret = node->fs->callback( op, node, args );
+	
+	va_end( args );
+	return ret;
 }
 */
 
-int fs_mkdir ( file_node_t *node, char *name, unsigned long mode ){ DEBUG_HERE
-	if ( node->type == FS_DIR && node->mkdir ){ DEBUG_HERE
-		return node->mkdir( node, name, mode );
-	} else { DEBUG_HERE
-		return -1;
-	}
-}
+int register_fs( file_system_t *newfs, int flags ){
+	if ( !file_system_list )
+		file_system_list = knew( llist_node_t );
 
-int fs_mknod ( file_node_t *node, char *name, int mode, int dev ){ DEBUG_HERE
-	if ( node->type == FS_DIR && node->mknod ){ DEBUG_HERE
-		return node->mknod( node, name, mode, dev );
-	} else { DEBUG_HERE
-		return -1;
-	}
-}
-
-int fs_stat ( file_node_t *node, struct vfs_stat *buf ){
-	buf->type = node->type;
-	buf->uid  = node->uid;
-	buf->gid  = node->gid;
-	buf->time = node->time;
-	buf->size = node->size;
-	buf->mask = node->mask;
+	l_add_node_end( file_system_list, newfs );
 
 	return 0;
 }
 
-file_node_t *fs_find_node( file_node_t *node, char *name, unsigned int links ){ DEBUG_HERE
-	if ( node->type == FS_DIR && node->find_node ){ DEBUG_HERE
-		return node->find_node( node, name, links );
-	} else { DEBUG_HERE
-		return 0;
-	}
+int register_mount_node( file_node_t *node ){
+	llist_node_t *move;
+	file_node_t *blarg = knew( file_node_t );
+	if ( !mount_list )
+		mount_list = knew( llist_node_t );
+
+	move = l_add_node_end( mount_list, 0 );
+
+	blarg->fs = node->fs;
+	blarg->inode = node->inode;
+
+	move->data = blarg;
+	move->val = ++mount_ids;
+
+	return mount_ids;
 }
+
+int get_mount_node( int id, file_node_t *nodebuf ){
+	llist_node_t *move = mount_list;
+	file_node_t *blarg;
+
+	for ( ; move; move = move->next ){
+		if ( move->val == id ){
+			blarg = (file_node_t *)move->data;
+			nodebuf->fs = blarg->fs;
+			nodebuf->inode = blarg->inode;
+			return 1;
+		}
+	}
+
+	return -ENOENT;
+}
+
+int fs_mount( file_node_t *type, file_node_t *dir, int flags, void *data ){
+	int ret = 0, id;
+
+	id = register_mount_node( dir );
+	if ( id < 1 ){
+		ret = id;
+		goto alldone;
+	}
+
+	ret = type->fs->ops->callback( type, FOP_SET, FVAR_MOUNT_ID, id );
+
+alldone:
+	return ret;
+	
+}	
+
+int fs_find_node( file_node_t *node, char *path, int links, file_node_t *nodebuf ){
+
+	file_info_t *n_info = knew( file_info_t );
+	int err_val = 0;
+
+	int 	i, d = 0, r = 0, j = 0,
+		found = 0,
+		in_dir = 0, 
+		has_subdir = 0;
+
+	char 	*name = path,
+		*nametemp = name,
+		*nextname = name;
+
+	struct dirent *dir = (struct dirent *)kmalloc( sizeof( dir ), 0, 0 );
+	file_node_t temp;
+
+	temp.fs = node->fs;
+	temp.inode = node->inode;
+
+	temp.fs->ops->get_info( &temp, n_info );
+
+	while ( !found ){
+
+		if ( !name ){
+			err_val = -ENOENT;
+			goto alldone;
+		}
+
+		nextname = 0;
+		nametemp = name;
+		for ( has_subdir = i = 0; name[i]; i++ ){
+			if ( name[i] == '/' ){
+				has_subdir = 1;
+				name[i] = 0;
+				nextname = name + i + 1;
+				break;
+			}
+		}
+		name = nametemp;
+
+		if ( strcmp( name, "." ) == 0 ){
+			name = nextname;
+			if ( !has_subdir ){
+				nodebuf->inode = temp.inode;
+				nodebuf->fs = temp.fs;
+				found = 1;
+				break;
+			}
+
+			continue;
+		} else if ( strcmp( name, ".." ) == 0 ){ 
+			err_val = -ENOTDIR;
+			goto alldone;
+		} 
+
+		printf( "[fs_find_node] Got here, inode=%d, subdir=%d, size=%d, name=\"%s\"\n", 
+			n_info->inode, has_subdir, n_info->size, name );
+
+		if ( n_info->type == FS_DIR ){
+			printf( "[fs_find_node] trying [ " );
+			d = r = in_dir = 0;
+
+			while ( !in_dir ){
+				r = temp.fs->ops->readdir( &temp, dir, d );
+
+				if ( !r ) {
+					printf( "read of 0 " );
+					break;
+				}
+
+				d += r;
+
+				if ( strcmp( dir->name, name ) == 0 ){
+					temp.inode = dir->inode;
+					in_dir = 1;
+				}
+			}
+
+			printf( "]\n" );
+
+			if ( !in_dir ){
+				printf( "[fs_find_node] not in dir\n" );
+				err_val = -ENOENT;
+				goto alldone;
+
+			} else {
+				temp.fs->ops->get_info( &temp, n_info );
+
+				if ( n_info->mount_id ){
+					printf( "[fs_find_node] Followed mount_id %d\n", n_info->mount_id );
+					get_mount_node( n_info->mount_id, &temp );
+				}
+
+				if ( !has_subdir ){
+					nodebuf->inode = temp.inode;
+					nodebuf->fs = temp.fs;
+					found = 1;
+				}
+			}
+				
+		} else {
+			err_val = -ENOTDIR;
+			goto alldone;
+		}
+
+		name = nextname;
+	}
+
+alldone:
+	kfree( n_info );
+	kfree( dir );
+	return err_val;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #endif

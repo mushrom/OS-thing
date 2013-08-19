@@ -92,18 +92,56 @@ void unload_keyboard( void ){
 	unregister_interrupt_handler( IRQ1 );
 }
 
-file_node_t *keyboard_create( ){
-	file_node_t *kb_driver = (file_node_t *)kmalloc( sizeof( file_node_t ), 0, 0 );
-	memset( kb_driver, 0, sizeof( file_node_t ));
-	memcpy( kb_driver->name, "kb0", 4 );
-	kb_driver->type	 = FS_CHAR_D;
-	kb_driver->read	 = read_kb;
-	kb_driver->pread = pread_kb;
-	kb_driver->open  = open_kb;
-	kb_driver->close = close_kb;
-	kb_driver->mask  = 0777;
+static int kb_unsupported( file_node_t *node ){
+	return -ENOTSUP;
+}
+
+static int kb_get_info( file_node_t *node, file_info_t *buf ){
+	buf->type 	= FS_CHAR_D;
+	buf->name	= "kb";
+	buf->mask	= 0777;
+	buf->uid	= 0;
+	buf->gid	= 0;
+	buf->time	= 0;
+	buf->inode	= 0;
+	buf->size	= 0;
+	buf->links	= 1;
+	buf->flags	= 1;
+	buf->fs		= node->fs;
+	buf->mount_id	= 0;
+
+	return 0;
+}
+
+file_funcs_t kb_funcs = { 
+	.read	= read_kb,
+	.pread	= pread_kb,
+
+	.write	= kb_unsupported,
+	.pwrite	= kb_unsupported,
+	.ioctl	= kb_unsupported,
+	.mkdir	= kb_unsupported,
+	.mknod	= kb_unsupported,
+	.link	= kb_unsupported,
+	.unlink	= kb_unsupported,
+
+	.open	= open_kb,
+	.close	= close_kb,
+
+	.get_info = kb_get_info,
+};
+
+file_system_t *keyboard_create( ){
+	file_system_t *kb_driver = knew( file_system_t );
+
+	kb_driver->name = "ps2keyboard";
+	kb_driver->id = 321;
+	kb_driver->ops = &kb_funcs;
+	kb_driver->i_root = 0;
+	kb_driver->fs_data = 0;
 
 	register_interrupt_handler( IRQ1, &keyboard_handler );
+
 	/** Kludge alert; for some reason the keyboard will occassionally
  	 * (read: frequently) not interrupt if the handler isn't called immediately.
  	 * I have no idea why, but if it works... */

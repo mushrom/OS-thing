@@ -103,17 +103,53 @@ static int console_pwrite( file_node_t *node, void *buf, unsigned long size, uns
 	return console_write( node, buf, size );
 }
 
-file_node_t *console_create( ){
-	file_node_t *console_driver = (file_node_t *)kmalloc( sizeof( file_node_t ), 0, 0 );
+static int console_unsupported( file_node_t *node ){
+	return -ENOTSUP;
+}
 
-	memset( console_driver, 0, sizeof( file_node_t ));
-	memcpy( console_driver->name, "tty", 4 );
-	console_driver->type	= FS_CHAR_D;
-	console_driver->write	= console_write;
-	console_driver->pwrite	= console_pwrite;
-	console_driver->open	= console_open;
-	console_driver->close	= console_close;
-	console_driver->mask	= 0777;
+static int console_get_info( file_node_t *node, file_info_t *buf ){
+	buf->type 	= FS_CHAR_D;
+	buf->name	= "tty";
+	buf->mask	= 0777;
+	buf->uid	= 0;
+	buf->gid	= 0;
+	buf->time	= 0;
+	buf->inode	= 0;
+	buf->size	= 0;
+	buf->links	= 1;
+	buf->flags	= 1;
+	buf->fs		= node->fs;
+	buf->mount_id	= 0;
+
+	return 0;
+}
+
+file_funcs_t console_funcs = {
+	.read 	= console_unsupported,
+	.pread 	= console_unsupported,
+	.write	= console_write,
+	.pwrite	= console_pwrite,
+	.ioctl	= console_unsupported,
+
+	.mkdir	= console_unsupported,
+	.mknod	= console_unsupported,
+	.link	= console_unsupported,
+	.unlink = console_unsupported,
+
+	.open	= console_open,
+	.close	= console_close,
+
+	.get_info = console_get_info,
+};
+
+file_system_t *console_create( ){
+	file_system_t *console_driver = knew( file_system_t );
+
+	console_driver->name	= "textconsole";
+	console_driver->id	= 123;
+	console_driver->ops	= &console_funcs;
+	console_driver->i_root	= 0;
+	console_driver->fs_data	= 0;
 
 	return console_driver;
 }

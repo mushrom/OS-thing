@@ -1,5 +1,6 @@
 #ifndef _kernel_string_h
 #define _kernel_string_h
+#include <alloc.h>
 
 unsigned int strlen( char * );
 int strcmp( char *, char * );
